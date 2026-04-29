@@ -7,6 +7,9 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { personas } from "@/db/schema";
 import { slugify } from "@/lib/utils";
+import { generate } from "@/lib/openrouter";
+import { buildCorePromptTemplate } from "@/lib/persona-prompt";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 function csv(value: FormDataEntryValue | null): string[] {
   if (!value) return [];
@@ -82,4 +85,34 @@ export async function deletePersona(personaId: string) {
   revalidatePath("/dashboard");
   revalidatePath("/personas");
   redirect("/dashboard");
+}
+
+export async function regeneratePersonaCore(personaId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const rl = checkRateLimit(`ai:${session.user.id}`, 20, 60_000);
+  if (!rl.ok) throw new Error("Rate limit reached. Try again in a minute.");
+
+  const [p] = await db
+    .select()
+    .from(personas)
+    .where(and(eq(personas.id, personaId), eq(personas.userId, session.user.id)));
+  if (!p) throw new Error("Not found");
+
+  const text = await generate({
+    messages: [
+      { role: "system", content: "You are a precise creative collaborator." },
+      { role: "user", content: buildCorePromptTemplate(p) },
+    ],
+    temperature: 0.6,
+    max_tokens: 600,
+  });
+
+  await db
+    .update(personas)
+    .set({ personaCore: text, updatedAt: new Date() })
+    .where(and(eq(personas.id, personaId), eq(personas.userId, session.user.id)));
+
+  revalidatePath(`/personas/${personaId}`);
 }

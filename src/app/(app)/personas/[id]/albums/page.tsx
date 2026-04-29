@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { albums, personas } from "@/db/schema";
 import { PersonaTabs } from "../persona-tabs";
 import { createAlbum } from "./actions";
+import { listEras } from "../eras/actions";
 
 export default async function AlbumsPage({
   params,
@@ -22,6 +23,7 @@ export default async function AlbumsPage({
   if (!p) notFound();
 
   const list = await db.select().from(albums).where(eq(albums.personaId, id));
+  const eraList = await listEras(id);
 
   return (
     <div className="max-w-4xl">
@@ -70,6 +72,19 @@ export default async function AlbumsPage({
       <form action={createAlbum.bind(null, id)} className="card space-y-3">
         <h2 className="font-medium">New album</h2>
         <input name="title" required className="input" placeholder="Album title" />
+        {eraList.length > 0 && (
+          <label className="block">
+            <div className="label mb-1">Era (optional)</div>
+            <select name="eraId" className="select" defaultValue="">
+              <option value="">— No era —</option>
+              {eraList.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <textarea
           name="concept"
           rows={3}

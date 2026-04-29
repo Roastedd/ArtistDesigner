@@ -7,6 +7,7 @@ import { updatePersona, deletePersona } from "../actions";
 import { PersonaTabs } from "./persona-tabs";
 import PromptForge from "./prompt-forge";
 import { DeleteButton } from "@/components/delete-button";
+import { RegenerateCoreButton } from "./regenerate-core-button";
 
 export default async function PersonaPage({
   params,
@@ -53,8 +54,8 @@ export default async function PersonaPage({
           <h2 className="font-medium pt-4">Sonic DNA</h2>
           <Field label="Genres (csv)" name="genres" defaultValue={arr(p.genres)} />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="BPM min" name="bpmMin" defaultValue={p.bpmMin?.toString() ?? ""} />
-            <Field label="BPM max" name="bpmMax" defaultValue={p.bpmMax?.toString() ?? ""} />
+            <Field label="BPM min" name="bpmMin" type="number" min={20} max={400} defaultValue={p.bpmMin?.toString() ?? ""} />
+            <Field label="BPM max" name="bpmMax" type="number" min={20} max={400} defaultValue={p.bpmMax?.toString() ?? ""} />
           </div>
           <Field label="Vocal style" name="vocalStyle" defaultValue={p.vocalStyle ?? ""} />
           <Field label="Instrumentation (csv)" name="instrumentation" defaultValue={arr(p.instrumentation)} />
@@ -77,7 +78,9 @@ export default async function PersonaPage({
             textarea
             defaultValue={p.personaCore ?? ""}
           />
-
+          <div className="flex justify-end">
+            <RegenerateCoreButton personaId={p.id} />
+          </div>
           <label className="flex items-center gap-3 pt-3">
             <input
               type="checkbox"
@@ -113,11 +116,17 @@ function Field({
   name,
   defaultValue,
   textarea,
+  type,
+  min,
+  max,
 }: {
   label: string;
   name: string;
   defaultValue?: string;
   textarea?: boolean;
+  type?: string;
+  min?: number;
+  max?: number;
 }) {
   return (
     <label className="block">
@@ -125,7 +134,14 @@ function Field({
       {textarea ? (
         <textarea name={name} defaultValue={defaultValue} className="input" rows={3} />
       ) : (
-        <input name={name} defaultValue={defaultValue} className="input" />
+        <input
+          name={name}
+          defaultValue={defaultValue}
+          className="input"
+          type={type}
+          min={min}
+          max={max}
+        />
       )}
     </label>
   );

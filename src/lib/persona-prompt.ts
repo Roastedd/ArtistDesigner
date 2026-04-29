@@ -57,3 +57,68 @@ export function lyricsPromptTemplate(core: string, brief: string) {
     brief,
   ].join("\n");
 }
+
+export function promptTemplateFor(
+  target: "suno" | "udio" | "riffusion",
+  core: string,
+  brief: string,
+) {
+  if (target === "suno") return sunoPromptTemplate(core, brief);
+  const targetNotes: Record<"udio" | "riffusion", string> = {
+    udio:
+      "Write a Udio-style prompt: comma-separated tags + a short evocative phrase. Mention vocal timbre, era cues, mix character.",
+    riffusion:
+      "Write a Riffusion-style prompt: short, vivid, sound-design forward. Lean on textures, loops, BPM, and key.",
+  };
+  return [
+    `You are a senior music director writing a ${target} prompt.`,
+    targetNotes[target],
+    "Output a single, dense prompt (no preamble, no markdown).",
+    "It must reflect the locked Artist DNA below verbatim in spirit.",
+    "",
+    "=== ARTIST DNA (LOCKED) ===",
+    core,
+    "=== BRIEF ===",
+    brief,
+  ].join("\n");
+}
+
+export function buildCorePromptTemplate(p: {
+  name: string;
+  tagline?: string | null;
+  bio?: string | null;
+  genres?: string[] | null;
+  influences?: string[] | null;
+  vocalStyle?: string | null;
+  instrumentation?: string[] | null;
+  mixAesthetic?: string | null;
+  motifs?: string[] | null;
+  slang?: string[] | null;
+}) {
+  const facts: string[] = [];
+  facts.push(`Name: ${p.name}`);
+  if (p.tagline) facts.push(`Tagline: ${p.tagline}`);
+  if (p.bio) facts.push(`Bio: ${p.bio}`);
+  if (p.genres?.length) facts.push(`Genres: ${p.genres.join(", ")}`);
+  if (p.influences?.length) facts.push(`Influences: ${p.influences.join(", ")}`);
+  if (p.vocalStyle) facts.push(`Vocal style: ${p.vocalStyle}`);
+  if (p.instrumentation?.length)
+    facts.push(`Instrumentation: ${p.instrumentation.join(", ")}`);
+  if (p.mixAesthetic) facts.push(`Mix aesthetic: ${p.mixAesthetic}`);
+  if (p.motifs?.length) facts.push(`Motifs: ${p.motifs.join(", ")}`);
+  if (p.slang?.length) facts.push(`Slang: ${p.slang.join(", ")}`);
+
+  return [
+    "Write a tight, evocative ARTIST DNA card (~150–250 words).",
+    "Sections, in order, with these exact headers:",
+    "## Identity",
+    "## Sonic palette",
+    "## Vocal & lyrical voice",
+    "## Visual & vibe cues",
+    "## Don'ts",
+    "Be concrete and specific. No filler. Use the supplied facts; do not invent biography.",
+    "",
+    "=== FACTS ===",
+    facts.join("\n"),
+  ].join("\n");
+}

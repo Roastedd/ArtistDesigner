@@ -8,6 +8,7 @@ import { updateTrack } from "../actions";
 import { deleteTrack } from "../../albums/actions";
 import TrackStudio from "./track-studio";
 import { DeleteButton } from "@/components/delete-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 const STATUSES = ["idea", "prompt", "lyrics", "demo", "master", "released"] as const;
 
@@ -50,6 +51,19 @@ export default async function TrackPage({
 
   return (
     <div className="max-w-5xl">
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: persona.name, href: `/personas/${id}` },
+          album
+            ? { label: "Albums", href: `/personas/${id}/albums` }
+            : { label: "Tracks", href: `/personas/${id}/tracks` },
+          ...(album
+            ? [{ label: album.title, href: `/personas/${id}/albums/${album.id}` }]
+            : []),
+          { label: track.title },
+        ]}
+      />
       <Link
         href={
           album

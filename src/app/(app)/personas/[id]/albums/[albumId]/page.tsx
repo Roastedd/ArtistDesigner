@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { albums, personas, tracks } from "@/db/schema";
 import { PersonaTabs } from "../../persona-tabs";
 import { createTrack, updateAlbum, deleteAlbum, deleteTrack, reorderTracks } from "../actions";
+import { listEras } from "../../eras/actions";
 import { DeleteButton } from "@/components/delete-button";
 import TrackList from "./track-list";
 
@@ -53,6 +54,8 @@ export default async function AlbumPage({
     .from(tracks)
     .where(eq(tracks.albumId, albumId))
     .orderBy(asc(tracks.orderIndex));
+
+  const eraList = await listEras(id);
 
   return (
     <div className="max-w-4xl">
@@ -121,6 +124,23 @@ export default async function AlbumPage({
               type="url"
             />
           </label>
+          {eraList.length > 0 && (
+            <label className="block">
+              <div className="label mb-1">Era</div>
+              <select
+                name="eraId"
+                className="select"
+                defaultValue={a.eraId ?? ""}
+              >
+                <option value="">— No era —</option>
+                {eraList.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="block">
             <div className="label mb-1">Release date</div>
             <input

@@ -88,6 +88,7 @@ function Generator({
 }) {
   const [brief, setBrief] = useState("");
   const [model, setModel] = useState<string>(MODEL_PRESETS.fastFree);
+  const [target, setTarget] = useState<"suno" | "udio" | "riffusion">("suno");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -103,6 +104,7 @@ function Generator({
           mode,
           brief,
           model,
+          ...(mode === "suno" ? { target } : {}),
           ...(save ? { saveTo: { trackId } } : {}),
         }),
       });
@@ -129,8 +131,26 @@ function Generator({
     <div className="grid md:grid-cols-[1fr_320px] gap-6">
       <div className="card space-y-3">
         <h2 className="font-medium">
-          {mode === "suno" ? "Generate Suno prompt" : "Write lyrics"}
+          {mode === "suno"
+            ? `Generate ${target.charAt(0).toUpperCase() + target.slice(1)} prompt`
+            : "Write lyrics"}
         </h2>
+        {mode === "suno" && (
+          <label className="block">
+            <div className="label mb-1">Target tool</div>
+            <select
+              className="select"
+              value={target}
+              onChange={(e) =>
+                setTarget(e.target.value as "suno" | "udio" | "riffusion")
+              }
+            >
+              <option value="suno">Suno</option>
+              <option value="udio">Udio</option>
+              <option value="riffusion">Riffusion</option>
+            </select>
+          </label>
+        )}
         <select
           className="select"
           value={model}

@@ -22,11 +22,13 @@ export async function createAlbum(personaId: string, formData: FormData) {
   await assertOwnsPersona(personaId);
   const title = String(formData.get("title") ?? "").trim();
   if (!title) throw new Error("Title required");
+  const eraId = String(formData.get("eraId") ?? "") || null;
   const [a] = await db
     .insert(albums)
     .values({
       personaId,
       title,
+      eraId,
       concept: String(formData.get("concept") ?? "") || null,
     })
     .returning({ id: albums.id });
@@ -75,10 +77,11 @@ export async function updateAlbum(
   const coverUrl = String(formData.get("coverUrl") ?? "").trim() || null;
   const releaseDateStr = String(formData.get("releaseDate") ?? "").trim();
   const releaseDate = releaseDateStr ? new Date(releaseDateStr) : null;
+  const eraId = String(formData.get("eraId") ?? "") || null;
 
   await db
     .update(albums)
-    .set({ title, concept, coverUrl, releaseDate })
+    .set({ title, concept, coverUrl, releaseDate, eraId })
     .where(and(eq(albums.id, albumId), eq(albums.personaId, personaId)));
 
   revalidatePath(`/personas/${personaId}/albums/${albumId}`);

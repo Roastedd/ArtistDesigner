@@ -6,11 +6,16 @@ import { lyricVersions, personas, promptVersions, tracks } from "@/db/schema";
 import { generate } from "@/lib/openrouter";
 import {
   buildPersonaCore,
-  sunoPromptTemplate,
+  promptTemplateFor,
   lyricsPromptTemplate,
+  buildCorePromptTemplate,
 } from "@/lib/persona-prompt";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+
+const VALID_TARGETS = ["suno", "udio", "riffusion"] as const;
+type Target = (typeof VALID_TARGETS)[number];
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -18,10 +23,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { personaId, mode, brief, model, saveTo } = await req.json();
-  if (!personaId || !brief || !["suno", "lyrics"].includes(mode)) {
+  const rl = checkRateLimit(`ai:${session.user.id}`, 20, 60_000);
+  if (!rl.ok) {
+    const retryAfter = Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000));
+    return NextResponse.json(
+      { error: `Rate limit reached. Try again in ${retryAfter}s.` },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } },
+    );
+  }
+
+  const { personaId, mode, brief, model, saveTo, target } = await req.json();
+  if (!personaId || !["suno", "lyrics", "core"].includes(mode)) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
+  if (mode !== "core" && !brief) {
+    return NextResponse.json({ error: "Brief required" }, { status: 400 });
+  }
+  const promptTarget: Target =
+    mode === "suno" && VALID_TARGETS.includes(target) ? target : "suno";
 
   const [p] = await db
     .select()
@@ -32,7 +51,7 @@ export async function POST(req: Request) {
   let track:
     | { id: string; status: (typeof tracks.$inferSelect)["status"] }
     | undefined;
-  if (saveTo?.trackId) {
+  if (saveTo?.trackId && mode !== "core") {
     const [t] = await db
       .select({
         id: tracks.id,
@@ -49,9 +68,11 @@ export async function POST(req: Request) {
 
   const core = buildPersonaCore(p);
   const userPrompt =
-    mode === "suno"
-      ? sunoPromptTemplate(core, brief)
-      : lyricsPromptTemplate(core, brief);
+    mode === "core"
+      ? buildCorePromptTemplate(p)
+      : mode === "suno"
+        ? promptTemplateFor(promptTarget, core, brief)
+        : lyricsPromptTemplate(core, brief);
 
   let text: string;
   try {
@@ -61,8 +82,8 @@ export async function POST(req: Request) {
         { role: "system", content: "You are a precise creative collaborator." },
         { role: "user", content: userPrompt },
       ],
-      temperature: mode === "lyrics" ? 0.95 : 0.7,
-      max_tokens: mode === "lyrics" ? 1800 : 700,
+      temperature: mode === "lyrics" ? 0.95 : mode === "core" ? 0.6 : 0.7,
+      max_tokens: mode === "lyrics" ? 1800 : mode === "core" ? 600 : 700,
     });
   } catch (e) {
     return NextResponse.json(
@@ -78,7 +99,7 @@ export async function POST(req: Request) {
         .insert(promptVersions)
         .values({
           trackId: track.id,
-          target: "suno",
+          target: promptTarget,
           body: text,
           model: model ?? null,
         })
@@ -90,7 +111,7 @@ export async function POST(req: Request) {
           .set({ status: "prompt" })
           .where(eq(tracks.id, track.id));
       }
-    } else {
+    } else if (mode === "lyrics") {
       const [row] = await db
         .insert(lyricVersions)
         .values({ trackId: track.id, body: text, model: model ?? null })
@@ -105,5 +126,5 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ text, ...(saved ? { saved } : {}) });
+  return NextResponse.json({ text, target: promptTarget, ...(saved ? { saved } : {}) });
 }
