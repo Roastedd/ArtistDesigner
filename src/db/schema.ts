@@ -144,6 +144,10 @@ export const tracks = pgTable("track", {
   status: trackStatus("status").default("idea").notNull(),
   orderIndex: integer("order_index").default(0).notNull(),
   notes: text("notes"),
+  audioUrl: text("audio_url"),
+  bpm: integer("bpm"),
+  keySignature: text("key_signature"),
+  durationSec: integer("duration_sec"),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });
 

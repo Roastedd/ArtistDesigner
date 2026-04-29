@@ -113,6 +113,41 @@ export default async function TrackPage({
             </select>
           </label>
         </div>
+        <div className="grid md:grid-cols-3 gap-3">
+          <label className="block">
+            <div className="label mb-1">BPM</div>
+            <input
+              name="bpm"
+              type="number"
+              min={20}
+              max={400}
+              defaultValue={track.bpm ?? ""}
+              className="input"
+            />
+          </label>
+          <label className="block">
+            <div className="label mb-1">Key</div>
+            <input
+              name="keySignature"
+              defaultValue={track.keySignature ?? ""}
+              className="input"
+              placeholder="e.g. Am, F#"
+            />
+          </label>
+          <label className="block">
+            <div className="label mb-1">Audio URL</div>
+            <input
+              name="audioUrl"
+              type="url"
+              defaultValue={track.audioUrl ?? ""}
+              className="input"
+              placeholder="https://…/demo.mp3"
+            />
+          </label>
+        </div>
+        {track.audioUrl && (
+          <audio controls src={track.audioUrl} className="w-full" />
+        )}
         <label className="block">
           <div className="label mb-1">Notes</div>
           <textarea

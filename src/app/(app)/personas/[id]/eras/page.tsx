@@ -6,6 +6,8 @@ import { personas } from "@/db/schema";
 import { PersonaTabs } from "../persona-tabs";
 import { createEra, updateEra, deleteEra, listEras } from "./actions";
 import { DeleteButton } from "@/components/delete-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { EraOrderButtons } from "./era-order-buttons";
 
 export default async function ErasPage({
   params,
@@ -22,9 +24,17 @@ export default async function ErasPage({
   if (!p) notFound();
 
   const list = await listEras(id);
+  const allIds = list.map((e) => e.id);
 
   return (
     <div className="max-w-4xl">
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: p.name, href: `/personas/${id}` },
+          { label: "Eras" },
+        ]}
+      />
       <PersonaTabs personaId={id} active="eras" />
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -49,6 +59,7 @@ export default async function ErasPage({
             className="card space-y-3"
           >
             <div className="flex items-center justify-between gap-3">
+              <EraOrderButtons personaId={id} eraId={e.id} allIds={allIds} />
               <input
                 name="name"
                 defaultValue={e.name}

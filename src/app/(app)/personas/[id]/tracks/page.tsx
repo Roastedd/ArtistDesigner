@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { albums, personas, tracks } from "@/db/schema";
 import { PersonaTabs } from "../persona-tabs";
 import { createTrack } from "../albums/actions";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 const STATUS_COLORS: Record<string, string> = {
   idea: "#6b7280",
@@ -45,6 +46,13 @@ export default async function TracksPage({
 
   return (
     <div className="max-w-4xl">
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: p.name, href: `/personas/${id}` },
+          { label: "Tracks" },
+        ]}
+      />
       <PersonaTabs personaId={id} active="tracks" />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">All tracks</h1>

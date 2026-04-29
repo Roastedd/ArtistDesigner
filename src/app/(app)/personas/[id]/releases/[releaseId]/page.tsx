@@ -8,6 +8,7 @@ import { PersonaTabs } from "../../persona-tabs";
 import { updateRelease, deleteRelease } from "../actions";
 import { RELEASE_CHECKLIST } from "../checklist";
 import { DeleteButton } from "@/components/delete-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 const PHASES: Array<{ label: string; prefix: string }> = [
   { label: "Prep", prefix: "prep" },
@@ -65,6 +66,14 @@ export default async function ReleasePage({
 
   return (
     <div className="max-w-4xl">
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: row.persona.name, href: `/personas/${id}` },
+          { label: "Releases", href: `/personas/${id}/releases` },
+          { label: album?.title ?? "Release" },
+        ]}
+      />
       <PersonaTabs personaId={id} active="releases" />
       <Link
         href={`/personas/${id}/releases`}

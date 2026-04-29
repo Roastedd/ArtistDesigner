@@ -71,3 +71,16 @@ export async function deleteEra(personaId: string, eraId: string) {
   revalidatePath(`/personas/${personaId}/eras`);
   redirect(`/personas/${personaId}/eras`);
 }
+
+export async function reorderEras(personaId: string, orderedIds: string[]) {
+  await assertOwnsPersona(personaId);
+  await Promise.all(
+    orderedIds.map((id, idx) =>
+      db
+        .update(eras)
+        .set({ orderIndex: idx })
+        .where(and(eq(eras.id, id), eq(eras.personaId, personaId))),
+    ),
+  );
+  revalidatePath(`/personas/${personaId}/eras`);
+}

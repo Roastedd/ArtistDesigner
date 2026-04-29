@@ -9,6 +9,7 @@ import { PersonaTabs } from "../../persona-tabs";
 import { createTrack, updateAlbum, deleteAlbum, deleteTrack, reorderTracks } from "../actions";
 import { listEras } from "../../eras/actions";
 import { DeleteButton } from "@/components/delete-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import TrackList from "./track-list";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -59,6 +60,14 @@ export default async function AlbumPage({
 
   return (
     <div className="max-w-4xl">
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: p.name, href: `/personas/${id}` },
+          { label: "Albums", href: `/personas/${id}/albums` },
+          { label: a.title },
+        ]}
+      />
       <PersonaTabs personaId={id} active="albums" />
       <Link
         href={`/personas/${id}/albums`}

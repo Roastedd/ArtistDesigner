@@ -3,11 +3,13 @@ import { and, eq } from "drizzle-orm";
 import { requireUserId } from "@/lib/require-auth";
 import { db } from "@/db";
 import { personas } from "@/db/schema";
-import { updatePersona, deletePersona } from "../actions";
+import { updatePersona, deletePersona, clonePersona } from "../actions";
 import { PersonaTabs } from "./persona-tabs";
 import PromptForge from "./prompt-forge";
 import { DeleteButton } from "@/components/delete-button";
 import { RegenerateCoreButton } from "./regenerate-core-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function PersonaPage({
   params,
@@ -26,11 +28,33 @@ export default async function PersonaPage({
 
   return (
     <div className="max-w-4xl">
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: p.name },
+        ]}
+      />
       <PersonaTabs personaId={id} active="studio" />
       <div className="flex items-baseline justify-between mb-2">
         <h1 className="text-3xl font-semibold tracking-tight">{p.name}</h1>
         <div className="flex items-center gap-3">
           <div className="text-xs text-[color:var(--color-muted)] font-mono">{p.slug}</div>
+          <a
+            href={`/api/personas/${p.id}/export`}
+            className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-accent)] underline"
+          >
+            Export JSON
+          </a>
+          <form
+            action={async () => {
+              "use server";
+              await clonePersona(p.id);
+            }}
+          >
+            <SubmitButton className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-accent)] underline bg-transparent border-0 p-0">
+              Duplicate
+            </SubmitButton>
+          </form>
           <DeleteButton
             action={async () => {
               "use server";

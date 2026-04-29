@@ -8,6 +8,7 @@ import { albums, personas } from "@/db/schema";
 import { PersonaTabs } from "../persona-tabs";
 import { createAlbum } from "./actions";
 import { listEras } from "../eras/actions";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 export default async function AlbumsPage({
   params,
@@ -27,6 +28,13 @@ export default async function AlbumsPage({
 
   return (
     <div className="max-w-4xl">
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: p.name, href: `/personas/${id}` },
+          { label: "Albums" },
+        ]}
+      />
       <PersonaTabs personaId={id} active="albums" />
 
       <h1 className="text-2xl font-semibold mb-1">{p.name} · Albums</h1>

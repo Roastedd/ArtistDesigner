@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { albums, personas, tracks } from "@/db/schema";
+import { albums, eras, personas, tracks } from "@/db/schema";
 
 export const revalidate = 60;
 
@@ -18,14 +18,36 @@ export default async function PublicPersonaPage({
     .where(and(eq(personas.slug, slug), eq(personas.isPublic, true)));
   if (!p) notFound();
 
-  const [albumList, trackList] = await Promise.all([
+  const [albumList, trackList, eraList] = await Promise.all([
     db.select().from(albums).where(eq(albums.personaId, p.id)),
     db
       .select()
       .from(tracks)
       .where(eq(tracks.personaId, p.id))
       .orderBy(asc(tracks.orderIndex)),
+    db
+      .select()
+      .from(eras)
+      .where(eq(eras.personaId, p.id))
+      .orderBy(asc(eras.orderIndex)),
   ]);
+
+  const albumsByEra = new Map<string | null, typeof albumList>();
+  for (const a of albumList) {
+    const key = a.eraId ?? null;
+    const arr = albumsByEra.get(key) ?? [];
+    arr.push(a);
+    albumsByEra.set(key, arr);
+  }
+  const eraSections: { era: (typeof eraList)[number] | null; albums: typeof albumList }[] = [
+    ...eraList
+      .filter((e) => albumsByEra.has(e.id))
+      .map((e) => ({ era: e, albums: albumsByEra.get(e.id)! })),
+  ];
+  const unassigned = albumsByEra.get(null);
+  if (unassigned && unassigned.length > 0) {
+    eraSections.push({ era: null, albums: unassigned });
+  }
 
   const palette = (p.colorPalette ?? []).slice(0, 5);
 
@@ -95,37 +117,57 @@ export default async function PublicPersonaPage({
         {albumList.length > 0 && (
           <section>
             <h2 className="label mb-3">Discography</h2>
-            <ul className="grid sm:grid-cols-2 gap-3">
-              {albumList.map((a) => (
-                <li key={a.id} className="card flex gap-3">
-                  {a.coverUrl ? (
-                    <Image
-                      src={a.coverUrl}
-                      alt={a.title}
-                      width={80}
-                      height={80}
-                      className="rounded border border-[color:var(--color-border)] aspect-square object-cover shrink-0"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded border border-dashed border-[color:var(--color-border)] shrink-0" />
-                  )}
-                  <div className="min-w-0">
-                    <div className="font-medium">{a.title}</div>
-                    {a.releaseDate && (
-                      <div className="text-[10px] font-mono text-[color:var(--color-muted)]">
-                        {new Date(a.releaseDate).toISOString().slice(0, 10)}
-                      </div>
-                    )}
-                    {a.concept && (
-                      <div className="text-sm text-[color:var(--color-muted)] mt-1 line-clamp-3">
-                        {a.concept}
-                      </div>
-                    )}
-                  </div>
-                </li>
+            <div className="space-y-8">
+              {eraSections.map(({ era, albums: groupAlbums }) => (
+                <div key={era?.id ?? "_none"}>
+                  {era ? (
+                    <div className="mb-3">
+                      <div className="text-sm font-medium">{era.name}</div>
+                      {era.description && (
+                        <div className="text-xs text-[color:var(--color-muted)] mt-0.5">
+                          {era.description}
+                        </div>
+                      )}
+                    </div>
+                  ) : eraList.length > 0 ? (
+                    <div className="text-sm font-medium mb-3 text-[color:var(--color-muted)]">
+                      Other
+                    </div>
+                  ) : null}
+                  <ul className="grid sm:grid-cols-2 gap-3">
+                    {groupAlbums.map((a) => (
+                      <li key={a.id} className="card flex gap-3">
+                        {a.coverUrl ? (
+                          <Image
+                            src={a.coverUrl}
+                            alt={a.title}
+                            width={80}
+                            height={80}
+                            className="rounded border border-[color:var(--color-border)] aspect-square object-cover shrink-0"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded border border-dashed border-[color:var(--color-border)] shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-medium">{a.title}</div>
+                          {a.releaseDate && (
+                            <div className="text-[10px] font-mono text-[color:var(--color-muted)]">
+                              {new Date(a.releaseDate).toISOString().slice(0, 10)}
+                            </div>
+                          )}
+                          {a.concept && (
+                            <div className="text-sm text-[color:var(--color-muted)] mt-1 line-clamp-3">
+                              {a.concept}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           </section>
         )}
 
@@ -136,15 +178,25 @@ export default async function PublicPersonaPage({
               {trackList.map((t, i) => (
                 <li
                   key={t.id}
-                  className="flex items-center gap-4 px-5 py-3"
+                  className="px-5 py-3 space-y-2"
                 >
-                  <span className="font-mono text-xs text-[color:var(--color-muted)] w-6">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <span className="flex-1">{t.title}</span>
-                  <span className="text-xs text-[color:var(--color-muted)]">
-                    {t.status}
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <span className="font-mono text-xs text-[color:var(--color-muted)] w-6">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="flex-1">{t.title}</span>
+                    <span className="text-xs text-[color:var(--color-muted)]">
+                      {t.status}
+                    </span>
+                  </div>
+                  {t.audioUrl && (
+                    <audio
+                      controls
+                      preload="none"
+                      src={t.audioUrl}
+                      className="w-full h-8"
+                    />
+                  )}
                 </li>
               ))}
             </ul>

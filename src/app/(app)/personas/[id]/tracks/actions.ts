@@ -22,12 +22,17 @@ async function assertOwnsTrack(trackId: string) {
 
 export async function updateTrack(trackId: string, formData: FormData) {
   const personaId = await assertOwnsTrack(trackId);
+  const bpmRaw = String(formData.get("bpm") ?? "").trim();
+  const bpm = bpmRaw ? Number(bpmRaw) : null;
   await db
     .update(tracks)
     .set({
       title: String(formData.get("title") ?? ""),
       status: String(formData.get("status") ?? "idea") as Status,
       notes: String(formData.get("notes") ?? "") || null,
+      audioUrl: String(formData.get("audioUrl") ?? "").trim() || null,
+      bpm: bpm && !Number.isNaN(bpm) ? bpm : null,
+      keySignature: String(formData.get("keySignature") ?? "").trim() || null,
     })
     .where(eq(tracks.id, trackId));
   revalidatePath(`/personas/${personaId}/tracks/${trackId}`);

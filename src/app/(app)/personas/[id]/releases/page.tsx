@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { albums, personas, releases } from "@/db/schema";
 import { PersonaTabs } from "../persona-tabs";
 import { createRelease } from "./actions";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 export default async function ReleasesPage({
   params,
@@ -40,6 +41,13 @@ export default async function ReleasesPage({
 
   return (
     <div className="max-w-4xl">
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: p.name, href: `/personas/${id}` },
+          { label: "Releases" },
+        ]}
+      />
       <PersonaTabs personaId={id} active="releases" />
       <h1 className="text-2xl font-semibold mb-1">{p.name} · Releases</h1>
       <p className="text-sm text-[color:var(--color-muted)] mb-8">
