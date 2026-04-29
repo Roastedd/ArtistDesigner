@@ -11,7 +11,23 @@ import {
 } from "@/db/schema";
 
 const hasSmtp = !!(process.env.EMAIL_SERVER && process.env.EMAIL_FROM);
+const hasResend = !!process.env.RESEND_API_KEY;
 const hasGitHub = !!(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
+
+// Build SMTP server string: explicit EMAIL_SERVER > Resend SMTP > dev fallback
+function resolveSmtpServer() {
+  if (hasSmtp) return process.env.EMAIL_SERVER!;
+  if (hasResend) return `smtps://resend:${process.env.RESEND_API_KEY}@smtp.resend.com:465`;
+  return "smtp://user:pass@localhost:25";
+}
+
+function resolveFrom() {
+  if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
+  if (hasResend) return "ArtistDesigner <onboarding@resend.dev>";
+  return "dev@artistdesigner.local";
+}
+
+const isRealEmail = hasSmtp || hasResend;
 
 const providers = [];
 
@@ -21,10 +37,9 @@ if (hasGitHub) {
 
 providers.push(
   Nodemailer({
-    // dummy server when SMTP isn't configured; sendVerificationRequest is overridden so it never connects
-    server: hasSmtp ? process.env.EMAIL_SERVER! : "smtp://user:pass@localhost:25",
-    from: process.env.EMAIL_FROM ?? "dev@artistdesigner.local",
-    sendVerificationRequest: hasSmtp
+    server: resolveSmtpServer(),
+    from: resolveFrom(),
+    sendVerificationRequest: isRealEmail
       ? undefined
       : async ({ identifier, url }) => {
           // Dev mode: print the magic link to the server console.
@@ -47,3 +62,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/sign-in",
   },
 });
+
+export { isRealEmail };

@@ -1,10 +1,9 @@
-import { signIn, auth } from "@/auth";
+import { signIn, auth, isRealEmail } from "@/auth";
 import { redirect } from "next/navigation";
 
 const hasGitHub = !!(
   process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET
 );
-const hasSmtp = !!(process.env.EMAIL_SERVER && process.env.EMAIL_FROM);
 
 export default async function SignInPage() {
   const session = await auth();
@@ -59,13 +58,27 @@ export default async function SignInPage() {
         </form>
       </div>
 
-      {!hasSmtp && (
+      {!isRealEmail && process.env.NODE_ENV === "production" ? (
+        <p className="text-xs text-amber-400 mt-6 border border-amber-400/30 rounded p-3">
+          <strong>Email not configured.</strong> Add a{" "}
+          <code>RESEND_API_KEY</code> environment variable in your Vercel
+          project settings to enable magic-link sign-in.{" "}
+          <a
+            href="https://resend.com"
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            Get a free Resend key →
+          </a>
+        </p>
+      ) : !isRealEmail ? (
         <p className="text-xs text-[color:var(--color-muted)] mt-6">
           <strong>Dev mode:</strong> the magic link will be printed in your
           terminal where <code>pnpm dev</code> is running. Copy-paste it into
           your browser to sign in.
         </p>
-      )}
+      ) : null}
     </main>
   );
 }
