@@ -48,3 +48,6 @@ test-results/
 
 # VS Code workspace settings (may contain secrets)
 .vscode/
+
+.vercel
+.env*.local
