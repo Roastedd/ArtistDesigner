@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { albums, personas, tracks } from "@/db/schema";
+import { albums, personas, tracks, lyricVersions, promptVersions } from "@/db/schema";
 
 async function assertOwnsPersona(personaId: string) {
   const session = await auth();
@@ -60,6 +60,7 @@ export async function createTrack(
 
   if (albumId) revalidatePath(`/personas/${personaId}/albums/${albumId}`);
   revalidatePath(`/personas/${personaId}/albums`);
+  revalidatePath(`/personas/${personaId}/tracks`);
 }
 
 export async function updateAlbum(
@@ -82,4 +83,46 @@ export async function updateAlbum(
 
   revalidatePath(`/personas/${personaId}/albums/${albumId}`);
   revalidatePath(`/personas/${personaId}/albums`);
+}
+
+export async function deleteAlbum(personaId: string, albumId: string) {
+  await assertOwnsPersona(personaId);
+  await db
+    .delete(albums)
+    .where(and(eq(albums.id, albumId), eq(albums.personaId, personaId)));
+  revalidatePath(`/personas/${personaId}/albums`);
+  redirect(`/personas/${personaId}/albums`);
+}
+
+export async function deleteTrack(
+  personaId: string,
+  trackId: string,
+  albumId: string | null,
+) {
+  await assertOwnsPersona(personaId);
+  // Cascade delete versions first (no DB cascade defined for these in schema)
+  await db.delete(promptVersions).where(eq(promptVersions.trackId, trackId));
+  await db.delete(lyricVersions).where(eq(lyricVersions.trackId, trackId));
+  await db
+    .delete(tracks)
+    .where(and(eq(tracks.id, trackId), eq(tracks.personaId, personaId)));
+  if (albumId) revalidatePath(`/personas/${personaId}/albums/${albumId}`);
+  revalidatePath(`/personas/${personaId}/tracks`);
+  revalidatePath(`/personas/${personaId}`);
+}
+
+export async function reorderTracks(
+  personaId: string,
+  albumId: string | null,
+  orderedIds: string[],
+) {
+  await assertOwnsPersona(personaId);
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db
+      .update(tracks)
+      .set({ orderIndex: i })
+      .where(and(eq(tracks.id, orderedIds[i]), eq(tracks.personaId, personaId)));
+  }
+  if (albumId) revalidatePath(`/personas/${personaId}/albums/${albumId}`);
+  revalidatePath(`/personas/${personaId}/tracks`);
 }

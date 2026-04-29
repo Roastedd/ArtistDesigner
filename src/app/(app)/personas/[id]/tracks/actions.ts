@@ -85,3 +85,19 @@ export async function getTrackHistory(trackId: string) {
   ]);
   return { prompts, lyrics };
 }
+
+export async function deletePromptVersion(trackId: string, versionId: string) {
+  const personaId = await assertOwnsTrack(trackId);
+  await db
+    .delete(promptVersions)
+    .where(and(eq(promptVersions.id, versionId), eq(promptVersions.trackId, trackId)));
+  revalidatePath(`/personas/${personaId}/tracks/${trackId}`);
+}
+
+export async function deleteLyricVersion(trackId: string, versionId: string) {
+  const personaId = await assertOwnsTrack(trackId);
+  await db
+    .delete(lyricVersions)
+    .where(and(eq(lyricVersions.id, versionId), eq(lyricVersions.trackId, trackId)));
+  revalidatePath(`/personas/${personaId}/tracks/${trackId}`);
+}

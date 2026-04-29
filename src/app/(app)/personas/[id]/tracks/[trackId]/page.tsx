@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { requireUserId } from "@/lib/require-auth";
 import { db } from "@/db";
 import { albums, lyricVersions, personas, promptVersions, tracks } from "@/db/schema";
 import { updateTrack } from "../actions";
+import { deleteTrack } from "../../albums/actions";
 import TrackStudio from "./track-studio";
+import { DeleteButton } from "@/components/delete-button";
 
 const STATUSES = ["idea", "prompt", "lyrics", "demo", "master", "released"] as const;
 
@@ -61,8 +63,19 @@ export default async function TrackPage({
 
       <div className="flex items-baseline justify-between mt-2 mb-1">
         <h1 className="text-3xl font-semibold tracking-tight">{track.title}</h1>
-        <div className="text-xs text-[color:var(--color-muted)]">
-          {persona.name}
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-[color:var(--color-muted)]">
+            {persona.name}
+          </div>
+          <DeleteButton
+            action={async () => {
+              "use server";
+              await deleteTrack(id, trackId, album?.id ?? null);
+              redirect(album ? `/personas/${id}/albums/${album.id}` : `/personas/${id}/tracks`);
+            }}
+            label="Delete track"
+            confirm={`Delete track "${track.title}"? All prompt and lyric versions will be removed.`}
+          />
         </div>
       </div>
 

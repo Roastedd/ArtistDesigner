@@ -78,3 +78,10 @@ export async function getAlbumsForPersona(personaId: string) {
     .from(albums)
     .where(eq(albums.personaId, personaId));
 }
+
+export async function deleteRelease(releaseId: string) {
+  const personaId = await assertOwnsRelease(releaseId);
+  await db.delete(releases).where(eq(releases.id, releaseId));
+  revalidatePath(`/personas/${personaId}/releases`);
+  redirect(`/personas/${personaId}/releases`);
+}

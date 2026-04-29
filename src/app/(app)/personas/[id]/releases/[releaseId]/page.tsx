@@ -5,8 +5,9 @@ import { requireUserId } from "@/lib/require-auth";
 import { db } from "@/db";
 import { albums, personas, releases } from "@/db/schema";
 import { PersonaTabs } from "../../persona-tabs";
-import { updateRelease } from "../actions";
+import { updateRelease, deleteRelease } from "../actions";
 import { RELEASE_CHECKLIST } from "../checklist";
+import { DeleteButton } from "@/components/delete-button";
 
 const PHASES: Array<{ label: string; prefix: string }> = [
   { label: "Prep", prefix: "prep" },
@@ -74,8 +75,18 @@ export default async function ReleasePage({
       <h1 className="text-3xl font-semibold tracking-tight mt-2 mb-1">
         {album?.title ?? "Untitled release"}
       </h1>
-      <div className="text-sm text-[color:var(--color-muted)] mb-6">
-        {done} / {RELEASE_CHECKLIST.length} complete · {pct}%
+      <div className="flex items-center justify-between mb-6">
+        <div className="text-sm text-[color:var(--color-muted)]">
+          {done} / {RELEASE_CHECKLIST.length} complete · {pct}%
+        </div>
+        <DeleteButton
+          action={async () => {
+            "use server";
+            await deleteRelease(releaseId);
+          }}
+          label="Delete release"
+          confirm="Delete this release plan? Checklist progress will be lost."
+        />
       </div>
       <div className="h-1 bg-[color:var(--color-bg-elev)] rounded mb-8 overflow-hidden">
         <div

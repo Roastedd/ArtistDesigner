@@ -151,8 +151,14 @@ export default async function PublicPersonaPage({
           </section>
         )}
 
-        <footer className="pt-8 border-t border-[color:var(--color-border)] text-xs text-[color:var(--color-muted)]">
-          made with ArtistDesigner
+        <footer className="pt-8 border-t border-[color:var(--color-border)] text-xs text-[color:var(--color-muted)] flex items-center justify-between">
+          <span>made with ArtistDesigner</span>
+          <a
+            href="/sign-in"
+            className="px-3 py-1.5 rounded border border-[color:var(--color-border)] hover:border-[color:var(--color-accent)] hover:text-white transition-colors"
+          >
+            Build your own AI artist →
+          </a>
         </footer>
       </main>
     </div>

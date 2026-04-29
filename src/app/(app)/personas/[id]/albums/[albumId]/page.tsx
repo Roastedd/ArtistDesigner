@@ -6,7 +6,9 @@ import { requireUserId } from "@/lib/require-auth";
 import { db } from "@/db";
 import { albums, personas, tracks } from "@/db/schema";
 import { PersonaTabs } from "../../persona-tabs";
-import { createTrack, updateAlbum } from "../actions";
+import { createTrack, updateAlbum, deleteAlbum, deleteTrack, reorderTracks } from "../actions";
+import { DeleteButton } from "@/components/delete-button";
+import TrackList from "./track-list";
 
 const STATUS_LABELS: Record<string, string> = {
   idea: "Idea",
@@ -62,7 +64,17 @@ export default async function AlbumPage({
         ← All albums
       </Link>
       <h1 className="text-3xl font-semibold tracking-tight mt-2 mb-1">{a.title}</h1>
-      <p className="text-[color:var(--color-muted)] mb-8">{a.concept}</p>
+      <div className="flex items-baseline justify-between mb-8">
+        <p className="text-[color:var(--color-muted)]">{a.concept}</p>
+        <DeleteButton
+          action={async () => {
+            "use server";
+            await deleteAlbum(id, albumId);
+          }}
+          label="Delete album"
+          confirm={`Delete album "${a.title}"? Tracks remain but become unassigned.`}
+        />
+      </div>
 
       <div className="grid md:grid-cols-[200px_1fr] gap-6 mb-8">
         <div>
@@ -127,34 +139,15 @@ export default async function AlbumPage({
       </div>
 
       <h2 className="font-medium mb-3">Tracks</h2>
-      <div className="card divide-y divide-[color:var(--color-border)] p-0 mb-6">
-        {list.length === 0 && (
-          <div className="px-5 py-6 text-sm text-[color:var(--color-muted)]">
-            No tracks yet. Add one below.
-          </div>
-        )}
-        {list.map((t, i) => (
-          <Link
-            key={t.id}
-            href={`/personas/${id}/tracks/${t.id}`}
-            className="flex items-center gap-4 px-5 py-3 hover:bg-[color:var(--color-bg)]"
-          >
-            <div className="font-mono text-xs text-[color:var(--color-muted)] w-6">
-              {String(i + 1).padStart(2, "0")}
-            </div>
-            <div className="flex-1 font-medium">{t.title}</div>
-            <span
-              className="text-xs px-2 py-0.5 rounded-full border"
-              style={{
-                color: STATUS_COLORS[t.status],
-                borderColor: STATUS_COLORS[t.status],
-              }}
-            >
-              {STATUS_LABELS[t.status]}
-            </span>
-          </Link>
-        ))}
-      </div>
+      <TrackList
+        personaId={id}
+        albumId={albumId}
+        tracks={list.map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+        }))}
+      />
 
       <form
         action={createTrack.bind(null, id, albumId)}

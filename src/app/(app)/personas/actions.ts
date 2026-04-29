@@ -70,3 +70,16 @@ export async function updatePersona(personaId: string, formData: FormData) {
 
   revalidatePath(`/personas/${personaId}`);
 }
+
+export async function deletePersona(personaId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  await db
+    .delete(personas)
+    .where(and(eq(personas.id, personaId), eq(personas.userId, session.user.id)));
+
+  revalidatePath("/dashboard");
+  revalidatePath("/personas");
+  redirect("/dashboard");
+}

@@ -3,9 +3,10 @@ import { and, eq } from "drizzle-orm";
 import { requireUserId } from "@/lib/require-auth";
 import { db } from "@/db";
 import { personas } from "@/db/schema";
-import { updatePersona } from "../actions";
+import { updatePersona, deletePersona } from "../actions";
 import { PersonaTabs } from "./persona-tabs";
 import PromptForge from "./prompt-forge";
+import { DeleteButton } from "@/components/delete-button";
 
 export default async function PersonaPage({
   params,
@@ -27,7 +28,17 @@ export default async function PersonaPage({
       <PersonaTabs personaId={id} active="studio" />
       <div className="flex items-baseline justify-between mb-2">
         <h1 className="text-3xl font-semibold tracking-tight">{p.name}</h1>
-        <div className="text-xs text-[color:var(--color-muted)] font-mono">{p.slug}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-[color:var(--color-muted)] font-mono">{p.slug}</div>
+          <DeleteButton
+            action={async () => {
+              "use server";
+              await deletePersona(p.id);
+            }}
+            label="Delete persona"
+            confirm={`Permanently delete "${p.name}"? All albums, tracks, and lyric versions will be removed. This cannot be undone.`}
+          />
+        </div>
       </div>
       <p className="text-[color:var(--color-muted)] mb-8">{p.tagline}</p>
 
