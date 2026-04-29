@@ -1,0 +1,17 @@
+export const RELEASE_CHECKLIST = [
+  "prep:concept_locked",
+  "prep:cover_art_final",
+  "prep:audio_mastered",
+  "rights:isrc_assigned",
+  "rights:upc_assigned",
+  "rights:metadata_final",
+  "distributor:account_ready",
+  "distributor:splits_set",
+  "upload:audio_uploaded",
+  "upload:scheduled_date",
+  "promo:visual_assets",
+  "promo:short_clips",
+  "promo:press_one_pager",
+  "post:dsp_links_collected",
+  "post:smartlink_published",
+] as const;

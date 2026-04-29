@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ArtistDesigner
 
-## Getting Started
+A multi-tenant SaaS for building a single fictional AI artist persona (Gorillaz-style solo character) with a locked sonic + visual identity, then generating Suno/Udio prompts and lyrics with consistent voice — and shipping releases through a guided distribution checklist.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js 16** (App Router) + TypeScript + Tailwind v4
+- **Neon Postgres** (serverless driver)
+- **Drizzle ORM** + drizzle-kit
+- **Auth.js v5** (Drizzle adapter, magic-link email)
+- **OpenRouter** for all LLM calls (free + paid models, prompt-export only)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Copy `.env.example` → `.env.local` and fill in:
+   - `DATABASE_URL` (already set to your Neon project)
+   - `AUTH_SECRET` — generate with `openssl rand -base64 32` (or `npx auth secret`)
+   - `OPENROUTER_API_KEY` — https://openrouter.ai/keys
+   - For email sign-in: `EMAIL_SERVER` + `EMAIL_FROM` (Resend / Mailtrap / etc.)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Push the schema to Neon:
+   ```pwsh
+   pnpm drizzle-kit push
+   ```
 
-## Learn More
+3. Run dev:
+   ```pwsh
+   pnpm dev
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+## What's built (MVP slice)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Multi-tenant schema (every domain row scoped by `userId`)
+- Auth.js magic-link sign-in
+- Persona Studio: Identity, Sonic DNA, Visual DNA, Voice & Language, Persona Core override
+- Prompt Forge with persona auto-injection (Suno + lyrics modes, free/paid model picker)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Next milestones
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Album Workshop (tracks, ordering, status pipeline)
+- Lyric structure editor with version history
+- Asset Locker (cover art uploads to R2/S3)
+- Release Planner with distribution checklist
+- Public portfolio microsite per persona
