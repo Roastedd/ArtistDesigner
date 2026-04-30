@@ -105,7 +105,6 @@ export default async function Dashboard() {
           icon={Sparkles}
           title="Generate Artist"
           desc="AI-generate a complete Artist DNA"
-          badge="2 credits"
           tone="accent"
         />
         <ActionCard
@@ -113,7 +112,6 @@ export default async function Dashboard() {
           icon={Sparkles}
           title="Generate Album"
           desc="AI-generate a cohesive album"
-          badge="4 credits"
           tone="accent"
         />
         <ActionCard
@@ -121,21 +119,18 @@ export default async function Dashboard() {
           icon={UserPlus}
           title="Add Artist"
           desc="Manually add your own artist"
-          badge="Free"
         />
         <ActionCard
           href="/library/albums?new=manual"
           icon={Disc3}
           title="Build Album"
           desc="Assemble your own tracks"
-          badge="Free"
         />
         <ActionCard
           href="/library/tracks?new=ai"
           icon={Music2}
           title="Generate Track"
           desc="One-off AI track with full prompt"
-          badge="2 credits"
           tone="accent"
         />
         <ActionCard
@@ -143,7 +138,6 @@ export default async function Dashboard() {
           icon={Plus}
           title="Add Track"
           desc="Add a track from your own files"
-          badge="Free"
         />
       </section>
 
@@ -220,21 +214,21 @@ function GettingStarted({
     {
       done: hasArtist,
       title: "Generate an Artist",
-      desc: "2 credits",
+      desc: "Define your sonic + visual DNA in under a minute",
       href: "/personas/new",
       cta: "Start",
     },
     {
       done: hasAlbum,
-      title: "Generate an Album",
-      desc: "4 credits",
+      title: "Build an Album",
+      desc: "Sequence tracks into a cohesive release",
       href: "/library/albums?new=ai",
       cta: "Start",
     },
     {
       done: hasPublic,
       title: "Share on Explore",
-      desc: "Free — toggle an artist to Public",
+      desc: "Toggle an artist to Public to publish a profile",
       href: "/personas",
       cta: "Open",
     },

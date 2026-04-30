@@ -18,7 +18,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : [undefined];
   const theme = u?.theme ?? "dark";
   const accent = u?.accentColor ?? null;
-  const credits = u?.credits ?? 0;
 
   return (
     <div
@@ -46,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </Link>
 
         <div className="flex-1 min-h-0 px-3 py-3 flex flex-col">
-          <SidebarNav credits={credits} />
+          <SidebarNav />
         </div>
 
         <div className="border-t border-[color:var(--color-border)] px-3 py-2.5 flex items-center justify-between gap-2">

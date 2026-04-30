@@ -12,7 +12,8 @@ import {
   Plus,
   Mic2,
   Globe2,
-  HelpCircle,
+  BookOpen,
+  Lightbulb,
 } from "lucide-react";
 
 type Item = {
@@ -43,6 +44,11 @@ const LIBRARY: Item[] = [
 
 const DISCOVER: Item[] = [
   { href: "/explore", label: "Explore", icon: Globe2 },
+];
+
+const LEARN: Item[] = [
+  { href: "/guides", label: "Guides", icon: BookOpen },
+  { href: "/guides/how-ai-works", label: "How AI Works", icon: Lightbulb },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -95,7 +101,7 @@ function Section({
   );
 }
 
-export default function SidebarNav({ credits }: { credits: number }) {
+export default function SidebarNav() {
   const pathname = usePathname();
   return (
     <div className="flex flex-col gap-1 flex-1 min-h-0">
@@ -104,36 +110,7 @@ export default function SidebarNav({ credits }: { credits: number }) {
         <Section title="Create" items={CREATE} pathname={pathname} />
         <Section title="My Library" items={LIBRARY} pathname={pathname} />
         <Section title="Discover" items={DISCOVER} pathname={pathname} />
-      </div>
-
-      <div className="mt-3 pt-3 border-t border-[color:var(--color-border)] flex flex-col gap-2">
-        <div className="flex items-center justify-between px-2.5 py-2 rounded-md bg-[color:var(--color-bg-elev)]">
-          <div className="flex items-center gap-2 text-sm">
-            <Sparkles className="h-4 w-4 text-[color:var(--color-accent)]" />
-            <span className="font-semibold text-[color:var(--color-accent)]">
-              {credits}
-            </span>
-            <span className="text-[color:var(--color-muted)]">credits</span>
-          </div>
-          <Link
-            href="/credits"
-            aria-label="About credits"
-            className="text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)] transition-colors"
-          >
-            <HelpCircle className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-        <div className="flex items-center gap-3 px-2.5 text-[11px] text-[color:var(--color-muted)]">
-          <Link href="/guides" className="hover:text-[color:var(--color-fg)] transition-colors">
-            Guides
-          </Link>
-          <Link
-            href="/guides/how-ai-works"
-            className="hover:text-[color:var(--color-fg)] transition-colors"
-          >
-            How AI Works
-          </Link>
-        </div>
+        <Section title="Learn" items={LEARN} pathname={pathname} />
       </div>
     </div>
   );
