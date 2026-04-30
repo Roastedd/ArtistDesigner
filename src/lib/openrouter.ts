@@ -78,3 +78,36 @@ export const MODEL_PRESETS = {
   paidTop: "anthropic/claude-sonnet-4.6",
   auto: "openrouter/auto",
 } as const;
+
+/**
+ * Try a sequence of models in order; on transient failure, fall back.
+ * Returns the first non-empty completion. Aggregates errors if every
+ * model fails. Useful when free-tier models are rate-limited or down.
+ */
+export async function generateWithFallback(
+  opts: Omit<GenerateOptions, "model"> & { models: string[] },
+): Promise<{ content: string; model: string }> {
+  const errors: string[] = [];
+  for (const model of opts.models) {
+    try {
+      const content = await generate({ ...opts, model });
+      if (content && content.trim()) return { content, model };
+      errors.push(`${model}: empty response`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${model}: ${msg}`);
+      // Don't keep retrying on auth errors
+      if (msg.includes("401") || msg.includes("403")) break;
+    }
+  }
+  throw new Error(
+    `All models failed:\n${errors.map((e) => "  - " + e).join("\n")}`,
+  );
+}
+
+/** Default fallback chain: fast free → quality free → auto router. */
+export const DEFAULT_FALLBACK_CHAIN = [
+  MODEL_PRESETS.fastFree,
+  MODEL_PRESETS.qualityFree,
+  MODEL_PRESETS.auto,
+];

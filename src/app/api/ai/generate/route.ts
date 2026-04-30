@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { lyricVersions, personas, promptVersions, tracks } from "@/db/schema";
-import { generate } from "@/lib/openrouter";
+import { generate, generateWithFallback, DEFAULT_FALLBACK_CHAIN } from "@/lib/openrouter";
 import {
   buildPersonaCore,
   promptTemplateFor,
@@ -76,15 +76,28 @@ export async function POST(req: Request) {
 
   let text: string;
   try {
-    text = await generate({
-      model,
-      messages: [
-        { role: "system", content: "You are a precise creative collaborator." },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: mode === "lyrics" ? 0.95 : mode === "core" ? 0.6 : 0.7,
-      max_tokens: mode === "lyrics" ? 1800 : mode === "core" ? 600 : 700,
-    });
+    if (model) {
+      text = await generate({
+        model,
+        messages: [
+          { role: "system", content: "You are a precise creative collaborator." },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: mode === "lyrics" ? 0.95 : mode === "core" ? 0.6 : 0.7,
+        max_tokens: mode === "lyrics" ? 1800 : mode === "core" ? 600 : 700,
+      });
+    } else {
+      const result = await generateWithFallback({
+        models: DEFAULT_FALLBACK_CHAIN,
+        messages: [
+          { role: "system", content: "You are a precise creative collaborator." },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: mode === "lyrics" ? 0.95 : mode === "core" ? 0.6 : 0.7,
+        max_tokens: mode === "lyrics" ? 1800 : mode === "core" ? 600 : 700,
+      });
+      text = result.content;
+    }
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Generation failed" },

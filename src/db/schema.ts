@@ -8,6 +8,7 @@ import {
   uuid,
   boolean,
   pgEnum,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
@@ -125,7 +126,14 @@ export const personas = pgTable("persona", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [
+  index("persona_user_id_idx").on(t.userId),
+  // Plain (non-unique) for now to avoid breaking push if any duplicate slugs exist.
+  // Slug uniqueness is enforced at the app level via slug suffixing.
+  index("persona_slug_idx").on(t.slug),
+  index("persona_user_created_idx").on(t.userId, t.createdAt),
+  index("persona_public_idx").on(t.isPublic),
+]);
 
 export const eras = pgTable("era", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -137,7 +145,7 @@ export const eras = pgTable("era", {
   orderIndex: integer("order_index").default(0).notNull(),
   dnaOverrides: jsonb("dna_overrides").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [index("era_persona_idx").on(t.personaId)]);
 
 export const albums = pgTable("album", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -151,7 +159,10 @@ export const albums = pgTable("album", {
   orderIndex: integer("order_index").default(0).notNull(),
   releaseDate: timestamp("release_date", { mode: "date" }),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [
+  index("album_persona_idx").on(t.personaId),
+  index("album_persona_created_idx").on(t.personaId, t.createdAt),
+]);
 
 export const tracks = pgTable("track", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -168,7 +179,12 @@ export const tracks = pgTable("track", {
   keySignature: text("key_signature"),
   durationSec: integer("duration_sec"),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [
+  index("track_persona_idx").on(t.personaId),
+  index("track_album_idx").on(t.albumId),
+  index("track_persona_created_idx").on(t.personaId, t.createdAt),
+  index("track_status_idx").on(t.status),
+]);
 
 export const promptVersions = pgTable("prompt_version", {
   id: uuid("id").primaryKey().defaultRandom(),

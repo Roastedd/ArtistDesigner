@@ -1,12 +1,19 @@
 import Link from "next/link";
 import Image from "next/image";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
 import { Disc3, Plus, Sparkles } from "lucide-react";
 import { db } from "@/db";
 import { albums, personas } from "@/db/schema";
 import { requireUserId } from "@/lib/require-auth";
+import { SearchBar } from "@/components/search-bar";
 
-export default async function MyAlbumsPage() {
+export default async function MyAlbumsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const term = (q ?? "").trim();
   const userId = await requireUserId();
 
   const owned = await db
@@ -21,13 +28,18 @@ export default async function MyAlbumsPage() {
     ? await db
         .select()
         .from(albums)
-        .where(inArray(albums.personaId, personaIds))
+        .where(
+          and(
+            inArray(albums.personaId, personaIds),
+            term ? ilike(albums.title, `%${term}%`) : undefined,
+          ),
+        )
         .orderBy(desc(albums.createdAt))
     : [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
+    <div className="space-y-6 animate-fade-up">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Albums</h1>
           <p className="text-[color:var(--color-muted)] mt-1 text-sm">
@@ -44,8 +56,18 @@ export default async function MyAlbumsPage() {
         </div>
       </div>
 
+      <SearchBar placeholder="Search albums…" />
+
       {rows.length === 0 ? (
-        <EmptyState />
+        term ? (
+          <div className="card text-center py-10">
+            <p className="text-sm text-[color:var(--color-muted)]">
+              No albums match <span className="font-mono">{term}</span>.
+            </p>
+          </div>
+        ) : (
+          <EmptyState />
+        )
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {rows.map((a) => (
