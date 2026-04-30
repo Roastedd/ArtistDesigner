@@ -1,30 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { reorderEras } from "./actions";
 
 export function EraReorderControls({
-  personaId,
   ids,
 }: {
-  personaId: string;
   ids: string[];
 }) {
-  const [order, setOrder] = useState(ids);
-  const [pending, startTransition] = useTransition();
+  const order = ids;
+  const pending = false;
 
   if (order.length < 2) return null;
-
-  function move(idx: number, dir: -1 | 1) {
-    const target = idx + dir;
-    if (target < 0 || target >= order.length) return;
-    const next = order.slice();
-    [next[idx], next[target]] = [next[target], next[idx]];
-    setOrder(next);
-    startTransition(async () => {
-      await reorderEras(personaId, next);
-    });
-  }
 
   return (
     <div className="flex items-center gap-1 text-xs text-[color:var(--color-muted)]">

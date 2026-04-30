@@ -157,14 +157,14 @@ function Generator({
           onChange={(e) => setModel(e.target.value)}
         >
           <optgroup label="Free">
-            <option value={MODEL_PRESETS.fastFree}>DeepSeek v3.1 (free)</option>
+            <option value={MODEL_PRESETS.fastFree}>GPT-OSS 20B (free, fast)</option>
             <option value={MODEL_PRESETS.qualityFree}>
-              Gemini 2.0 Flash (free)
+              GPT-OSS 120B (free, quality)
             </option>
           </optgroup>
           <optgroup label="Paid">
             <option value={MODEL_PRESETS.paidBalanced}>Claude 3.5 Sonnet</option>
-            <option value={MODEL_PRESETS.paidTop}>Claude Sonnet 4.5</option>
+            <option value={MODEL_PRESETS.paidTop}>Claude Sonnet 4.6</option>
             <option value={MODEL_PRESETS.auto}>OpenRouter auto</option>
           </optgroup>
         </select>

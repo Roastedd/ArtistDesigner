@@ -13,24 +13,6 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import TrackList from "./track-list";
 import { CoverUploadField } from "./cover-upload-field";
 
-const STATUS_LABELS: Record<string, string> = {
-  idea: "Idea",
-  prompt: "Prompt",
-  lyrics: "Lyrics",
-  demo: "Demo",
-  master: "Master",
-  released: "Released",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  idea: "#6b7280",
-  prompt: "#a78bfa",
-  lyrics: "#60a5fa",
-  demo: "#fbbf24",
-  master: "#34d399",
-  released: "#22d3ee",
-};
-
 export default async function AlbumPage({
   params,
 }: {
