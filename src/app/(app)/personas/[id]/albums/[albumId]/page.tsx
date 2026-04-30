@@ -11,6 +11,7 @@ import { listEras } from "../../eras/actions";
 import { DeleteButton } from "@/components/delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import TrackList from "./track-list";
+import { CoverUploadField } from "./cover-upload-field";
 
 const STATUS_LABELS: Record<string, string> = {
   idea: "Idea",
@@ -133,16 +134,7 @@ export default async function AlbumPage({
               className="input"
             />
           </label>
-          <label className="block">
-            <div className="label mb-1">Cover image URL</div>
-            <input
-              name="coverUrl"
-              defaultValue={a.coverUrl ?? ""}
-              className="input"
-              placeholder="https://…"
-              type="url"
-            />
-          </label>
+          <CoverUploadField defaultValue={a.coverUrl ?? ""} />
           {eraList.length > 0 && (
             <label className="block">
               <div className="label mb-1">Era</div>

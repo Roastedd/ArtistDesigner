@@ -18,6 +18,11 @@ jobs:
       EMAIL_FROM: ci@example.com
       EMAIL_SERVER: smtp://user:pass@localhost:25
       OPENROUTER_API_KEY: ci-placeholder
+      R2_ACCOUNT_ID: ci-placeholder
+      R2_ACCESS_KEY_ID: ci-placeholder
+      R2_SECRET_ACCESS_KEY: ci-placeholder
+      R2_BUCKET_NAME: ci-placeholder
+      R2_PUBLIC_URL: https://cdn.example.com
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

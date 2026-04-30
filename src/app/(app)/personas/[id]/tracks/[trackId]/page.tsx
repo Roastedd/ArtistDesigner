@@ -7,6 +7,7 @@ import { albums, lyricVersions, personas, promptVersions, tracks } from "@/db/sc
 import { updateTrack } from "../actions";
 import { deleteTrack } from "../../albums/actions";
 import TrackStudio from "./track-studio";
+import { AudioUploadField } from "./audio-upload-field";
 import { DeleteButton } from "@/components/delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 
@@ -134,16 +135,7 @@ export default async function TrackPage({
               placeholder="e.g. Am, F#"
             />
           </label>
-          <label className="block">
-            <div className="label mb-1">Audio URL</div>
-            <input
-              name="audioUrl"
-              type="url"
-              defaultValue={track.audioUrl ?? ""}
-              className="input"
-              placeholder="https://…/demo.mp3"
-            />
-          </label>
+          <AudioUploadField defaultValue={track.audioUrl ?? ""} />
         </div>
         {track.audioUrl && (
           <audio controls src={track.audioUrl} className="w-full" />
