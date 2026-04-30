@@ -14,7 +14,7 @@ import {
   lyricVersions,
   releases,
 } from "@/db/schema";
-import { slugify } from "@/lib/utils";
+import { buildSlug } from "@/lib/utils";
 import { generate } from "@/lib/openrouter";
 import { buildCorePromptTemplate } from "@/lib/persona-prompt";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -42,7 +42,7 @@ export async function createPersona(formData: FormData) {
     .values({
       userId: session.user.id,
       name,
-      slug: slugify(name) + "-" + Math.random().toString(36).slice(2, 6),
+      slug: buildSlug(name),
       tagline: String(formData.get("tagline") ?? "") || null,
       bio: String(formData.get("bio") ?? "") || null,
       genres: csv(formData.get("genres")),
@@ -178,7 +178,7 @@ export async function importPersona(formData: FormData) {
     .values({
       userId: session.user.id,
       name: newName,
-      slug: slugify(newName) + "-" + Math.random().toString(36).slice(2, 6),
+      slug: buildSlug(newName),
       tagline: src.tagline ?? null,
       bio: src.bio ?? null,
       genres: src.genres ?? [],
@@ -410,7 +410,7 @@ export async function clonePersona(personaId: string) {
     .values({
       ...rest,
       name: newName,
-      slug: slugify(newName) + "-" + Math.random().toString(36).slice(2, 6),
+      slug: buildSlug(newName),
       isPublic: false,
     })
     .returning({ id: personas.id });

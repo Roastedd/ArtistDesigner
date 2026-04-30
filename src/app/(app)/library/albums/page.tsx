@@ -1,25 +1,36 @@
 import Link from "next/link";
 import Image from "next/image";
-import { and, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { and, asc, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
 import { Disc3, Plus, Sparkles } from "lucide-react";
 import { db } from "@/db";
 import { albums, personas } from "@/db/schema";
 import { requireUserId } from "@/lib/require-auth";
 import { SearchBar } from "@/components/search-bar";
+import { PersonaPickerModal } from "@/components/persona-picker-modal";
 
 export default async function MyAlbumsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; new?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, new: newParam } = await searchParams;
   const term = (q ?? "").trim();
+  const newMode = newParam === "ai" || newParam === "manual" ? newParam : null;
   const userId = await requireUserId();
 
   const owned = await db
     .select({ id: personas.id, name: personas.name })
     .from(personas)
-    .where(and(eq(personas.userId, userId), isNull(personas.deletedAt)));
+    .where(and(eq(personas.userId, userId), isNull(personas.deletedAt)))
+    .orderBy(asc(personas.name));
+
+  // Handle ?new=ai|manual launched from sidebar/dashboard.
+  if (newMode) {
+    if (owned.length === 0) redirect("/personas/new");
+    if (owned.length === 1) redirect(`/personas/${owned[0].id}/albums`);
+    // Otherwise we render the picker modal below.
+  }
 
   const personaIds = owned.map((p) => p.id);
   const personaMap = new Map(owned.map((p) => [p.id, p.name]));
@@ -39,6 +50,13 @@ export default async function MyAlbumsPage({
 
   return (
     <div className="space-y-6 animate-fade-up">
+      {newMode && owned.length > 1 && (
+        <PersonaPickerModal
+          personas={owned}
+          kind="album"
+          mode={newMode}
+        />
+      )}
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Albums</h1>

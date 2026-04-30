@@ -25,3 +25,17 @@ export async function updatePreferences(formData: FormData) {
 
   revalidatePath("/", "layout");
 }
+
+/** Quick theme toggle used by the topbar/sidebar button. */
+export async function setTheme(theme: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const next = VALID_THEMES.has(theme) ? theme : "dark";
+  await db
+    .update(users)
+    .set({ theme: next })
+    .where(eq(users.id, session.user.id));
+
+  revalidatePath("/", "layout");
+}

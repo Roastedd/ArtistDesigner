@@ -8,6 +8,8 @@ import { users } from "@/db/schema";
 import SidebarNav from "./sidebar-nav";
 import MobileChrome from "./mobile-chrome";
 import { FeedbackWidget } from "@/components/feedback-widget";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPaletteMount } from "@/components/command-palette-mount";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -63,6 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           >
             {session.user.email}
           </Link>
+          <ThemeToggle current={theme} />
           <form action={signOutAction}>
             <button
               aria-label="Sign out"
@@ -75,12 +78,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
 
       <div className="flex flex-col min-w-0">
-        <MobileChrome email={session.user.email} signOutAction={signOutAction} />
+        <MobileChrome
+          email={session.user.email}
+          signOutAction={signOutAction}
+          theme={theme}
+        />
         <main className="flex-1 min-w-0 px-4 py-5 sm:px-6 sm:py-6 md:p-8 max-w-6xl w-full pb-24 md:pb-8 safe-x animate-fade-up">
           {children}
         </main>
       </div>
       <FeedbackWidget />
+      <CommandPaletteMount />
     </div>
   );
 }

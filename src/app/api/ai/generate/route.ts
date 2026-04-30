@@ -11,6 +11,7 @@ import {
   buildCorePromptTemplate,
 } from "@/lib/persona-prompt";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { aiGenerateSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -32,15 +33,25 @@ export async function POST(req: Request) {
     );
   }
 
-  const { personaId, mode, brief, model, saveTo, target, controls } = await req.json();
-  if (!personaId || !["suno", "lyrics", "core"].includes(mode)) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+  const parsed = aiGenerateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid input", issues: parsed.error.issues },
+      { status: 400 },
+    );
+  }
+  const { personaId, mode, brief, model, saveTo, target, controls } = parsed.data;
   if (mode !== "core" && !brief) {
     return NextResponse.json({ error: "Brief required" }, { status: 400 });
   }
   const promptTarget: Target =
-    mode === "suno" && VALID_TARGETS.includes(target) ? target : "suno";
+    mode === "suno" && target && VALID_TARGETS.includes(target) ? target : "suno";
 
   const [p] = await db
     .select()
@@ -71,8 +82,8 @@ export async function POST(req: Request) {
     mode === "core"
       ? buildCorePromptTemplate(p)
       : mode === "suno"
-        ? promptTemplateFor(promptTarget, core, brief)
-        : lyricsPromptTemplate(core, brief, controls ?? {});
+        ? promptTemplateFor(promptTarget, core, brief!)
+        : lyricsPromptTemplate(core, brief!, controls ?? {});
 
   let text: string;
   try {

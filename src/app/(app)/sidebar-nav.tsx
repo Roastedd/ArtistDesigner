@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Sparkles,
   Disc3,
   Music2,
   UserPlus,
-  ListMusic,
   Plus,
   Mic2,
   Globe2,
   BookOpen,
   Lightbulb,
+  Search,
 } from "lucide-react";
 
 type Item = {
@@ -39,7 +40,6 @@ const LIBRARY: Item[] = [
   { href: "/personas", label: "My Artists", icon: Mic2 },
   { href: "/library/albums", label: "My Albums", icon: Disc3 },
   { href: "/library/tracks", label: "My Tracks", icon: Music2 },
-  { href: "/library/playlists", label: "Playlists", icon: ListMusic },
 ];
 
 const DISCOVER: Item[] = [
@@ -105,6 +105,7 @@ export default function SidebarNav() {
   const pathname = usePathname();
   return (
     <div className="flex flex-col gap-1 flex-1 min-h-0">
+      <CommandPaletteButton />
       <div className="overflow-y-auto pr-1 -mr-1 flex-1 flex flex-col gap-1">
         <Section items={TOP} pathname={pathname} />
         <Section title="Create" items={CREATE} pathname={pathname} />
@@ -113,5 +114,39 @@ export default function SidebarNav() {
         <Section title="Learn" items={LEARN} pathname={pathname} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Visible affordance for the global Cmd+K palette. Dispatches a synthetic
+ * keydown so we don't need to expose an extra context across the tree.
+ */
+function CommandPaletteButton() {
+  const [mac, setMac] = useState(false);
+  useEffect(() => {
+    setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
+  }, []);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        window.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "k",
+            ctrlKey: !mac,
+            metaKey: mac,
+            bubbles: true,
+          }),
+        );
+      }}
+      className="hidden md:flex items-center gap-2 mb-2 px-2.5 py-1.5 text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)] hover:bg-[color:var(--color-bg-elev)] rounded-md transition-colors"
+      aria-label="Open command palette"
+    >
+      <Search className="h-3.5 w-3.5" />
+      <span className="flex-1 text-left">Quick search…</span>
+      <kbd className="px-1.5 py-0.5 rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] font-mono text-[10px]">
+        {mac ? "⌘K" : "Ctrl+K"}
+      </kbd>
+    </button>
   );
 }

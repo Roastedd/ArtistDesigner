@@ -14,6 +14,7 @@ import {
   Music2,
 } from "lucide-react";
 import SidebarNav from "./sidebar-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type BottomItem = {
   href: string;
@@ -37,9 +38,11 @@ function isActive(pathname: string, href: string) {
 export default function MobileChrome({
   email,
   signOutAction,
+  theme,
 }: {
   email: string | null | undefined;
   signOutAction: () => Promise<void>;
+  theme: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -131,11 +134,14 @@ export default function MobileChrome({
               >
                 {email}
               </Link>
-              <form action={signOutAction}>
-                <button className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)] underline">
-                  Sign out
-                </button>
-              </form>
+              <div className="flex items-center gap-1">
+                <ThemeToggle current={theme} />
+                <form action={signOutAction}>
+                  <button className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)] underline">
+                    Sign out
+                  </button>
+                </form>
+              </div>
             </div>
           </aside>
         </div>

@@ -1,39 +1,40 @@
 import Link from "next/link";
-import { and, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { and, asc, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
 import { Music2, Plus, Sparkles } from "lucide-react";
 import { db } from "@/db";
 import { personas, tracks } from "@/db/schema";
 import { requireUserId } from "@/lib/require-auth";
 import { SearchBar } from "@/components/search-bar";
-
-const STATUS_COLORS: Record<string, string> = {
-  idea: "text-[color:var(--color-muted)]",
-  prompt: "text-blue-400",
-  lyrics: "text-violet-400",
-  demo: "text-amber-400",
-  master: "text-green-400",
-  released: "text-[color:var(--color-accent)]",
-};
+import { TrackStatusSelect } from "@/components/track-status-select";
+import { PersonaPickerModal } from "@/components/persona-picker-modal";
 
 const STATUSES = ["idea", "prompt", "lyrics", "demo", "master", "released"] as const;
 
 export default async function MyTracksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; new?: string }>;
 }) {
-  const { q, status } = await searchParams;
+  const { q, status, new: newParam } = await searchParams;
   const term = (q ?? "").trim();
   const statusFilter = STATUSES.includes(status as typeof STATUSES[number])
     ? (status as typeof STATUSES[number])
     : undefined;
+  const newMode = newParam === "ai" || newParam === "manual" ? newParam : null;
 
   const userId = await requireUserId();
 
   const owned = await db
     .select({ id: personas.id, name: personas.name })
     .from(personas)
-    .where(and(eq(personas.userId, userId), isNull(personas.deletedAt)));
+    .where(and(eq(personas.userId, userId), isNull(personas.deletedAt)))
+    .orderBy(asc(personas.name));
+
+  if (newMode) {
+    if (owned.length === 0) redirect("/personas/new");
+    if (owned.length === 1) redirect(`/personas/${owned[0].id}/tracks`);
+  }
 
   const personaIds = owned.map((p) => p.id);
   const personaMap = new Map(owned.map((p) => [p.id, p.name]));
@@ -54,6 +55,13 @@ export default async function MyTracksPage({
 
   return (
     <div className="space-y-6 animate-fade-up">
+      {newMode && owned.length > 1 && (
+        <PersonaPickerModal
+          personas={owned}
+          kind="track"
+          mode={newMode}
+        />
+      )}
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Tracks</h1>
@@ -154,12 +162,12 @@ export default async function MyTracksPage({
                     <td className="px-4 py-2.5 text-[color:var(--color-muted)]">
                       {personaMap.get(t.personaId) ?? "—"}
                     </td>
-                    <td
-                      className={`px-4 py-2.5 capitalize ${
-                        STATUS_COLORS[t.status] ?? ""
-                      }`}
-                    >
-                      {t.status}
+                    <td className="px-4 py-2.5">
+                      <TrackStatusSelect
+                        personaId={t.personaId}
+                        trackId={t.id}
+                        value={t.status}
+                      />
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono text-[color:var(--color-muted)]">
                       {t.bpm ?? "—"}

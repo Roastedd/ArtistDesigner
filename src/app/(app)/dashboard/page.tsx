@@ -95,7 +95,7 @@ export default async function Dashboard() {
       <ProducerNameCard
         initialName={user?.producerName ?? null}
         email={session.user.email ?? ""}
-        profileSlug={list[0]?.slug ?? null}
+        profileSlug={list.find((p) => p.isPublic)?.slug ?? null}
       />
 
       {/* Quick action grid */}
