@@ -158,7 +158,6 @@ export async function POST(req: NextRequest) {
       models: [MODEL_PRESETS.audioCheap],
       temperature: 0.3,
       max_tokens: 1500,
-      response_format: { type: "json_object" },
     });
     raw = out.content;
     usedModel = out.model;
@@ -171,10 +170,23 @@ export async function POST(req: NextRequest) {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return NextResponse.json(
-      { error: "Model returned non-JSON output", raw: raw.slice(0, 500) },
-      { status: 502 },
-    );
+    // Try to extract JSON from a fenced code block or first {...} blob.
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+    const candidate = fenced ?? raw.match(/\{[\s\S]*\}/)?.[0];
+    if (!candidate) {
+      return NextResponse.json(
+        { error: "Model returned non-JSON output", raw: raw.slice(0, 500) },
+        { status: 502 },
+      );
+    }
+    try {
+      parsed = JSON.parse(candidate);
+    } catch {
+      return NextResponse.json(
+        { error: "Model returned non-JSON output", raw: raw.slice(0, 500) },
+        { status: 502 },
+      );
+    }
   }
 
   // Persist for history.
