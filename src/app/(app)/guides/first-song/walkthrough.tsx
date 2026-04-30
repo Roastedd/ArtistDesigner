@@ -131,6 +131,9 @@ export function Walkthrough({
             A {TOTAL_STEPS}-step walkthrough for Suno or Udio. Your progress
             saves automatically.
           </p>
+          <p className="text-xs text-[color:var(--color-muted)] mt-1">
+            ⏱ ~30 minutes for your first take · No music background required
+          </p>
         </div>
         <div className="flex gap-2">
           {completed && (
@@ -176,14 +179,14 @@ export function Walkthrough({
         })}
       </ol>
 
+      <Glossary />
+
       {/* Step body */}
       <section className="card space-y-5">
         <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
           Step {step + 1} of {TOTAL_STEPS}
         </div>
-        <h2 className="text-xl font-semibold">{STEP_TITLES[step]}</h2>
-
-        {step === 0 && (
+        <h2 className="text-xl font-semibold">{STEP_TITLES[step]}</h2>        {step === 0 && (
           <PlatformPicker selected={platform} onSelect={pickPlatform} />
         )}
         {step === 1 && (
@@ -258,6 +261,43 @@ export function Walkthrough({
 
 /* ───────────────── steps ───────────────── */
 
+function Glossary() {
+  const [open, setOpen] = useState(false);
+  const terms: { term: string; def: string }[] = [
+    { term: "Suno / Udio", def: "AI websites that generate full songs (vocals + instruments) from your lyrics and a style description." },
+    { term: "Custom / Manual Mode", def: "The mode in Suno/Udio that lets you paste your own lyrics instead of having the AI write them." },
+    { term: "Style prompt", def: "A short, comma-separated description of how the song should sound (e.g. 'indie pop, female alto, 110 BPM, anthemic')." },
+    { term: "Section tags", def: "Brackets like [Verse 1], [Chorus], [Bridge] that tell the AI how to structure the song." },
+    { term: "BPM", def: "Beats per minute — the song's tempo. 60–80 = slow ballad, 90–110 = mid-tempo, 120–140 = upbeat, 140+ = fast/dance." },
+    { term: "DAW", def: "Digital Audio Workstation — the app you use to master (FL Studio, Ableton, Logic, GarageBand, Reaper)." },
+    { term: "Master / Mastering", def: "The final polish that makes your song loud and consistent enough for streaming services." },
+    { term: "LUFS", def: "Loudness Units Full Scale — how loud your song is. Spotify targets -14 LUFS integrated." },
+    { term: "True Peak (dBTP)", def: "The actual peak loudness. Keep it below -1.0 dBTP to avoid distortion on streaming." },
+    { term: "WAV vs MP3", def: "WAV is uncompressed (best quality, big file). MP3 is compressed (smaller, slight quality loss). Distributors require WAV." },
+    { term: "Distributor", def: "A service (DistroKid, TuneCore, CD Baby) that puts your song on Spotify, Apple Music, etc." },
+    { term: "ISRC / UPC", def: "Free tracking codes the distributor generates so platforms can count your streams. Don't pay extra for these." },
+  ];
+  return (
+    <details
+      className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)]"
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+    >
+      <summary className="cursor-pointer select-none px-3 py-2 text-xs uppercase tracking-wider text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)] flex items-center justify-between">
+        <span>📚 Glossary — what do these words mean?</span>
+        <span className="text-[10px]">{open ? "Hide" : "Show"}</span>
+      </summary>
+      <dl className="px-3 pb-3 grid sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
+        {terms.map((t) => (
+          <div key={t.term}>
+            <dt className="font-semibold text-[color:var(--color-fg)]">{t.term}</dt>
+            <dd className="text-[color:var(--color-muted)]">{t.def}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
+}
+
 function PlatformPicker({
   selected,
   onSelect,
@@ -267,11 +307,16 @@ function PlatformPicker({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[color:var(--color-muted)]">
-        Both platforms are excellent. Pick whichever you have credits on — you
-        can always switch later. ArtistDesigner gives you the lyrics and style
-        prompt; the platform turns them into audio.
-      </p>
+      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-sm space-y-1.5">
+        <div className="font-semibold">First time? Read this.</div>
+        <p className="text-[color:var(--color-muted)] text-xs leading-relaxed">
+          <strong>Suno</strong> and <strong>Udio</strong> are AI websites that
+          turn lyrics + a short style description into a finished song with
+          vocals. ArtistDesigner doesn&apos;t make audio — it gives you the{" "}
+          <em>perfect lyrics and style prompt</em> to paste into one of them.
+          Both have free credits to start, and you only need to pick one.
+        </p>
+      </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <PlatformCard
           name="suno"
@@ -281,7 +326,9 @@ function PlatformPicker({
             "Strong vocal clarity & studio polish",
             "Great at pop, R&B, hip-hop, country",
             "Custom Mode supports section tags ([Verse], [Chorus])",
+            "Free tier: 50 credits/day (~10 songs)",
           ]}
+          signupUrl="https://suno.com"
           selected={selected === "suno"}
           onSelect={() => onSelect("suno")}
         />
@@ -293,16 +340,16 @@ function PlatformPicker({
             "Excellent instrumental nuance & timbre",
             "Great at electronic, jazz, ambient, world",
             "Strong 'extend' / remix flow with manual prompt control",
+            "Free tier: 10 generations/day",
           ]}
+          signupUrl="https://www.udio.com"
           selected={selected === "udio"}
           onSelect={() => onSelect("udio")}
         />
       </div>
-      {!selected && (
-        <p className="text-xs text-[color:var(--color-muted)]">
-          Pick one to continue.
-        </p>
-      )}
+      <p className="text-xs text-[color:var(--color-muted)]">
+        Pick one to continue. You can change later — your progress saves either way.
+      </p>
     </div>
   );
 }
@@ -311,6 +358,7 @@ function PlatformCard({
   title,
   tagline,
   bullets,
+  signupUrl,
   selected,
   onSelect,
 }: {
@@ -318,34 +366,44 @@ function PlatformCard({
   title: string;
   tagline: string;
   bullets: string[];
+  signupUrl: string;
   selected: boolean;
   onSelect: () => void;
 }) {
   return (
-    <button
-      onClick={onSelect}
-      className={`text-left rounded-xl border p-4 transition-colors ${
+    <div
+      className={`rounded-xl border p-4 transition-colors ${
         selected
           ? "border-[color:var(--color-accent)] bg-[color:var(--color-accent)]/5"
           : "border-[color:var(--color-border)] hover:border-[color:var(--color-accent)]/50"
       }`}
     >
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="font-semibold">{title}</span>
-        {selected && (
-          <Check className="h-4 w-4 text-[color:var(--color-accent)]" />
-        )}
-      </div>
-      <p className="text-xs text-[color:var(--color-muted)] mb-3">{tagline}</p>
-      <ul className="text-xs space-y-1">
-        {bullets.map((b) => (
-          <li key={b} className="flex gap-1.5">
-            <span className="text-[color:var(--color-accent)]">•</span>
-            <span>{b}</span>
-          </li>
-        ))}
-      </ul>
-    </button>
+      <button onClick={onSelect} className="text-left w-full">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="font-semibold">{title}</span>
+          {selected && (
+            <Check className="h-4 w-4 text-[color:var(--color-accent)]" />
+          )}
+        </div>
+        <p className="text-xs text-[color:var(--color-muted)] mb-3">{tagline}</p>
+        <ul className="text-xs space-y-1 mb-3">
+          {bullets.map((b) => (
+            <li key={b} className="flex gap-1.5">
+              <span className="text-[color:var(--color-accent)]">•</span>
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+      </button>
+      <a
+        href={signupUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-[color:var(--color-accent)] hover:opacity-80 inline-flex items-center gap-1"
+      >
+        Don&apos;t have an account? Sign up free <ExternalLink className="h-3 w-3" />
+      </a>
+    </div>
   );
 }
 
@@ -490,41 +548,86 @@ We've been singing all along
 [Outro]
 We've been singing all along...`;
 
+  const platformName = platform === "udio" ? "Udio" : "Suno";
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-[color:var(--color-muted)]">
-        {platform === "udio"
-          ? "Udio respects section tags too. Keep verses tight (4–8 lines) and put the title-line in the chorus."
-          : "Suno's Custom Mode reads section tags like [Verse], [Chorus], [Bridge]. Keep total lyrics under ~3000 characters."}
+        Lyrics are the words your AI singer will perform. {platformName}{" "}
+        reads <strong>section tags</strong> like <code>[Verse 1]</code> and{" "}
+        <code>[Chorus]</code> and shapes the song around them.
       </p>
-      <ul className="text-sm space-y-1.5 list-disc pl-5">
-        <li>
-          Open your artist and use{" "}
-          <strong>Lyric Seeder</strong> or <strong>Prompt Forge</strong> to
-          draft lyrics that fit the artist's voice.
-        </li>
-        <li>
-          Structure: <code>[Verse 1] / [Pre-Chorus] / [Chorus] / [Verse 2] / [Chorus] / [Bridge] / [Chorus] / [Outro]</code>
-        </li>
-        <li>Repeat the chorus exactly — it teaches the model the hook.</li>
-        <li>One thought per line. Avoid stage directions in body text.</li>
-      </ul>
+
+      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
+        <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
+          Do this in ArtistDesigner
+        </div>
+        <ol className="text-sm space-y-2 list-decimal pl-5">
+          <li>
+            {selectedPersona ? (
+              <>
+                Open{" "}
+                <a
+                  href={`/personas/${selectedPersona.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1"
+                >
+                  <strong>{selectedPersona.name}</strong>{" "}
+                  <ExternalLink className="h-3 w-3" />
+                </a>{" "}
+                in a new tab.
+              </>
+            ) : (
+              <>
+                Open your artist&apos;s page (go back to step 2 if you skipped
+                it).
+              </>
+            )}
+          </li>
+          <li>
+            Scroll to the <strong>Prompt Forge</strong> card on the right.
+          </li>
+          <li>
+            Click the <strong>Lyrics</strong> tab (next to &quot;Suno
+            prompt&quot;).
+          </li>
+          <li>
+            Hit <strong>Browse templates →</strong> and pick a theme like{" "}
+            <em>&quot;Insomnia&quot;</em> or <em>&quot;Letter never sent&quot;</em>.
+            Or type your own brief: <em>&quot;a song about driving home in
+            the rain after a fight&quot;</em>.
+          </li>
+          <li>
+            Click <strong>Generate</strong>. The lyrics will appear with the{" "}
+            <code>[Verse]</code> / <code>[Chorus]</code> tags already in place.
+          </li>
+          <li>
+            Click <strong>Copy</strong> in the top-right of the output box —
+            you&apos;ll paste this into {platformName} in step 5.
+          </li>
+        </ol>
+      </div>
+
+      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs space-y-1">
+        <div className="font-semibold text-amber-300">
+          Quality rules (the Forge enforces these for you)
+        </div>
+        <ul className="space-y-0.5 list-disc pl-4 text-[color:var(--color-muted)]">
+          <li>
+            Use <code>[Verse 1] / [Pre-Chorus] / [Chorus] / [Verse 2] / [Chorus] / [Bridge] / [Chorus] / [Outro]</code>
+          </li>
+          <li>Repeat the chorus exactly each time — it teaches the model the hook.</li>
+          <li>One thought per line. No stage directions inside the lyric body.</li>
+          <li>{platformName} caps lyrics around <strong>3000 characters</strong>. Trim if longer.</li>
+        </ul>
+      </div>
+
       <CopyBlock
-        label="Example lyric structure"
+        label="Example lyric structure (use as reference)"
         text={exampleLyrics}
         lang="text"
       />
-      {selectedPersona && (
-        <a
-          href={`/personas/${selectedPersona.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-ghost inline-flex items-center gap-1.5 text-sm"
-        >
-          Open {selectedPersona.name} in new tab{" "}
-          <ExternalLink className="h-4 w-4" />
-        </a>
-      )}
     </div>
   );
 }
@@ -540,81 +643,94 @@ function StyleStep({
     platform === "udio"
       ? "moody synthwave, female alto vocals, analog drum machine, reverb-soaked guitar, 90 BPM, late-night drive, vintage 1985"
       : "indie pop rock, male tenor lead, jangly guitars, punchy drums, warm analog synths, 110 BPM, anthemic chorus, festival-ready";
+  const platformName = platform === "udio" ? "Udio" : "Suno";
   return (
     <div className="space-y-4">
       <p className="text-sm text-[color:var(--color-muted)]">
-        The style prompt tells the model <em>how</em> the song should sound.
-        Aim for ~6–12 short comma-separated tags. ArtistDesigner builds these
-        for you on each artist page.
+        The <strong>style prompt</strong> tells {platformName} <em>how</em>{" "}
+        the song should sound — genre, voice, instruments, mood. Aim for 6–12
+        short comma-separated tags.
       </p>
-      <ol className="text-sm space-y-1.5 list-decimal pl-5">
-        <li>Genre + sub-genre (e.g. "indie pop rock")</li>
-        <li>Vocal type (gender, range, delivery)</li>
-        <li>Key instruments (guitar, synth, drums)</li>
-        <li>Mood / energy (anthemic, melancholic)</li>
-        <li>Tempo in BPM</li>
-        <li>Era / production reference (1985, lo-fi, modern radio)</li>
-      </ol>
+
+      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
+        <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
+          Do this in ArtistDesigner
+        </div>
+        <ol className="text-sm space-y-2 list-decimal pl-5">
+          <li>
+            {selectedPersona ? (
+              <>
+                Back on{" "}
+                <a
+                  href={`/personas/${selectedPersona.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1"
+                >
+                  <strong>{selectedPersona.name}</strong>{" "}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+                , find the &quot;AI Music Generator Prompt&quot; card near the
+                top.
+              </>
+            ) : (
+              <>Open your artist&apos;s page.</>
+            )}
+          </li>
+          <li>
+            That card already has a ready-to-paste prompt built from your
+            artist&apos;s DNA. Hit <strong>Copy</strong> to grab it.
+          </li>
+          <li>
+            <em>Want a custom prompt for this specific song?</em> Open{" "}
+            <strong>Prompt Forge</strong> on the right, switch to the{" "}
+            <strong>Suno prompt</strong> tab, type your brief (e.g. &quot;a
+            dark, slow-burn opener that drops at 1:20&quot;), and click{" "}
+            <strong>Generate</strong>.
+          </li>
+          <li>
+            Hit <strong>Copy</strong> on the output. You&apos;ll paste this
+            alongside your lyrics in {platformName}.
+          </li>
+        </ol>
+      </div>
+
       <CopyBlock
-        label={`Example ${platform === "udio" ? "Udio" : "Suno"} style prompt`}
+        label={`Example ${platformName} style prompt`}
         text={example}
         lang="text"
       />
-      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-xs text-[color:var(--color-muted)]">
-        <strong className="text-[color:var(--color-fg)]">Pro tip:</strong>{" "}
-        avoid artist names. Use descriptors instead ("90s grunge female alto"
-        vs. naming a real artist) to dodge filters and stay original.
+
+      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs space-y-1">
+        <div className="font-semibold text-amber-300">Pro tips</div>
+        <ul className="space-y-0.5 list-disc pl-4 text-[color:var(--color-muted)]">
+          <li>
+            Don&apos;t name real artists (e.g. &quot;like Drake&quot;) —
+            {platformName} filters those out.
+          </li>
+          <li>Use descriptors instead: &quot;90s grunge female alto&quot;.</li>
+          <li>Always include a BPM number — it locks the tempo.</li>
+          <li>
+            Order matters: put the most important tag first (genre, then voice, then mood).
+          </li>
+        </ul>
       </div>
-      {selectedPersona && (
-        <a
-          href={`/personas/${selectedPersona.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-ghost inline-flex items-center gap-1.5 text-sm"
-        >
-          Build prompt on {selectedPersona.name}{" "}
-          <ExternalLink className="h-4 w-4" />
-        </a>
-      )}
     </div>
   );
 }
 
 function GenerateStep({ platform }: { platform: Platform | null }) {
-  const url =
-    platform === "udio" ? "https://www.udio.com/create" : "https://suno.com/create";
-  const name = platform === "udio" ? "Udio" : "Suno";
+  const isUdio = platform === "udio";
+  const url = isUdio ? "https://www.udio.com/create" : "https://suno.com/create";
+  const name = isUdio ? "Udio" : "Suno";
   return (
     <div className="space-y-4">
       <p className="text-sm text-[color:var(--color-muted)]">
-        Time to make audio. Open {name} in a new tab, switch to{" "}
-        <strong>Custom Mode</strong>, and paste in what you have.
+        Time to make actual audio. Open <strong>{name}</strong> in a new tab,
+        switch to {isUdio ? <strong>Manual Mode</strong> : <strong>Custom Mode</strong>}, and
+        paste in the lyrics + style prompt you just copied.
       </p>
-      <ol className="text-sm space-y-2 list-decimal pl-5">
-        <li>
-          Click below to open {name}.{" "}
-          <em className="text-[color:var(--color-muted)]">
-            (Sign in if needed.)
-          </em>
-        </li>
-        <li>
-          Toggle <strong>Custom Mode</strong> (Suno) or{" "}
-          <strong>Manual Mode</strong> (Udio).
-        </li>
-        <li>
-          Paste your <strong>lyrics</strong> with section tags into the lyrics
-          box.
-        </li>
-        <li>
-          Paste your <strong>style prompt</strong> into the style/description
-          box.
-        </li>
-        <li>Give it a working title and hit generate.</li>
-        <li>
-          Generate <strong>2–4 takes</strong>. Listen to all, pick the best,
-          then optionally <strong>Extend</strong> or <strong>Remaster</strong>.
-        </li>
-      </ol>
+
       <a
         href={url}
         target="_blank"
@@ -623,14 +739,140 @@ function GenerateStep({ platform }: { platform: Platform | null }) {
       >
         <ExternalLink className="h-4 w-4" /> Open {name}
       </a>
+
+      {isUdio ? (
+        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
+          <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
+            Click-by-click in Udio
+          </div>
+          <ol className="text-sm space-y-2 list-decimal pl-5">
+            <li>
+              Sign in (top right). New here?{" "}
+              <a
+                href="https://www.udio.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[color:var(--color-accent)] hover:underline"
+              >
+                Create a free account
+              </a>{" "}
+              first.
+            </li>
+            <li>
+              On the Create page, find the <strong>Custom</strong> toggle near
+              the prompt box and turn it ON. (Sometimes labeled{" "}
+              <em>&quot;Manual Mode&quot;</em>.)
+            </li>
+            <li>
+              You&apos;ll see two text boxes:
+              <ul className="list-disc pl-5 mt-1 text-xs space-y-0.5 text-[color:var(--color-muted)]">
+                <li><strong>Prompt / Tags</strong> — paste your style prompt here</li>
+                <li><strong>Lyrics</strong> — paste your full lyrics here (with the [Verse]/[Chorus] tags)</li>
+              </ul>
+            </li>
+            <li>
+              Set <strong>Song length</strong> to 32 seconds for a first take
+              (faster, costs less). You can extend it later.
+            </li>
+            <li>
+              Click <strong>Create</strong>. Udio gives you 2 takes per
+              generation.
+            </li>
+            <li>
+              When ready, click the track → <strong>Extend</strong> to grow it
+              from 32s to a full song, picking the section you want next
+              (intro, verse, chorus, outro).
+            </li>
+            <li>
+              Once you have a full song you love, click the{" "}
+              <strong>⋯ menu</strong> on the track →{" "}
+              <strong>Download</strong> → choose <strong>WAV</strong> (paid) or{" "}
+              <strong>MP3</strong>.
+            </li>
+          </ol>
+          <a
+            href="https://help.udio.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1 pt-1"
+          >
+            Stuck? Udio help center <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      ) : (
+        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
+          <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
+            Click-by-click in Suno
+          </div>
+          <ol className="text-sm space-y-2 list-decimal pl-5">
+            <li>
+              Sign in (top right). New here?{" "}
+              <a
+                href="https://suno.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[color:var(--color-accent)] hover:underline"
+              >
+                Create a free account
+              </a>{" "}
+              — you get 50 credits/day (~10 songs).
+            </li>
+            <li>
+              On the left sidebar, click <strong>Create</strong>.
+            </li>
+            <li>
+              At the top, toggle <strong>Custom</strong> ON. (The default
+              &quot;Simple&quot; mode hides the lyrics field.)
+            </li>
+            <li>
+              Three boxes appear:
+              <ul className="list-disc pl-5 mt-1 text-xs space-y-0.5 text-[color:var(--color-muted)]">
+                <li><strong>Lyrics</strong> — paste your full lyrics here (with the [Verse]/[Chorus] tags)</li>
+                <li><strong>Style of Music</strong> — paste your style prompt here</li>
+                <li><strong>Title</strong> — give it a working title</li>
+              </ul>
+            </li>
+            <li>
+              Make sure <strong>Instrumental</strong> is OFF (so it sings).
+            </li>
+            <li>
+              Click <strong>Create</strong>. Suno gives you 2 takes per
+              generation (10 credits each).
+            </li>
+            <li>
+              When done, hover the track → click the <strong>⋯ menu</strong>{" "}
+              → <strong>Download</strong> → choose <strong>MP3</strong>{" "}
+              (free) or <strong>WAV</strong> (Pro plan).
+            </li>
+            <li>
+              Don&apos;t love the take? Click <strong>Extend</strong> to keep
+              the same vibe, or tweak the prompt and re-generate.
+            </li>
+          </ol>
+          <a
+            href="https://help.suno.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1 pt-1"
+          >
+            Stuck? Suno help center <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      )}
+
       <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-xs space-y-1.5">
-        <div className="font-semibold">Quality checklist before downloading</div>
+        <div className="font-semibold">Quality checklist before you download</div>
         <ul className="space-y-1 text-[color:var(--color-muted)]">
-          <li>✓ Vocal sits clearly on top of the mix</li>
-          <li>✓ Chorus actually hits — bigger than verses</li>
-          <li>✓ No weird artifacts in the intro/outro</li>
+          <li>✓ Vocal sits clearly on top of the mix (not buried)</li>
+          <li>✓ Chorus actually hits — feels bigger than the verses</li>
+          <li>✓ No weird artifacts in the intro/outro (clipping, glitch noise)</li>
           <li>✓ Length feels right (most singles: 2:30–3:30)</li>
+          <li>✓ The lyrics are sung clearly — no obvious slurring on the hook line</li>
         </ul>
+        <p className="text-[color:var(--color-muted)] pt-1">
+          If 2 of these fail, regenerate before moving on. It&apos;s cheaper
+          to re-roll than to fix in mastering.
+        </p>
       </div>
     </div>
   );
@@ -647,25 +889,60 @@ function SaveStep({
         Bring your finished take back into ArtistDesigner so it lives with the
         artist, can join an album, and ships with a release checklist.
       </p>
-      <ol className="text-sm space-y-2 list-decimal pl-5">
-        <li>
-          On the platform, <strong>download the MP3</strong> (and the WAV if
-          you have a paid plan).
-        </li>
-        <li>
-          Also grab the <strong>cover art</strong> the platform generated, or
-          upload your own.
-        </li>
-        <li>
-          In ArtistDesigner, open the artist and add a track — paste the
-          lyrics, attach the audio file, and set status to <em>Mixed</em> or{" "}
-          <em>Mastered</em>.
-        </li>
-        <li>
-          Group it into an album when you're ready, then mark the artist
-          public to share.
-        </li>
-      </ol>
+      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
+        <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
+          Step-by-step
+        </div>
+        <ol className="text-sm space-y-2 list-decimal pl-5">
+          <li>
+            <strong>On Suno/Udio:</strong> hover the finished track → click
+            the <strong>⋯ menu</strong> → <strong>Download</strong>. Pick MP3
+            (free) or WAV (paid).
+          </li>
+          <li>
+            <strong>Save the cover art too.</strong> On Suno: click the song,
+            right-click the artwork → &quot;Save image as…&quot;. On Udio:
+            ⋯ menu → <strong>Download cover</strong>.
+          </li>
+          <li>
+            {selectedPersona ? (
+              <>
+                Open{" "}
+                <a
+                  href={`/personas/${selectedPersona.id}/tracks`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1"
+                >
+                  <strong>{selectedPersona.name} → Tracks</strong>{" "}
+                  <ExternalLink className="h-3 w-3" />
+                </a>{" "}
+                in a new tab and click <strong>+ New track</strong>.
+              </>
+            ) : (
+              <>Go back to step 2 and pick or create your artist first.</>
+            )}
+          </li>
+          <li>
+            Fill in:
+            <ul className="list-disc pl-5 mt-1 text-xs space-y-0.5 text-[color:var(--color-muted)]">
+              <li><strong>Title</strong> — what you&apos;ll release it as</li>
+              <li><strong>Lyrics</strong> — paste the same lyrics you used</li>
+              <li><strong>Audio file</strong> — drop the MP3/WAV you just downloaded</li>
+              <li><strong>Status</strong> — set to <em>Mixed</em> for now (you&apos;ll change to <em>Mastered</em> after step 7)</li>
+            </ul>
+          </li>
+          <li>
+            Hit <strong>Save</strong>. The track appears on your artist&apos;s
+            page and gets a public URL when the artist is published.
+          </li>
+          <li>
+            <em>Optional:</em> Group several tracks into an album from{" "}
+            <strong>{selectedPersona?.name ?? "Your artist"} → Albums →
+            New album</strong>.
+          </li>
+        </ol>
+      </div>
       <div className="flex flex-wrap gap-2">
         {selectedPersona ? (
           <a

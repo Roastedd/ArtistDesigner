@@ -26,42 +26,49 @@ export type ChecklistItem = {
 
 export const PHASE_META: Record<
   ReleasePhase,
-  { label: string; window: string; intent: string }
+  { label: string; window: string; intent: string; weeksOut: number }
 > = {
   concept: {
     label: "Concept & Audio",
     window: "≥ 4 weeks out",
     intent: "Lock the creative before anything downstream can move.",
+    weeksOut: 4,
   },
   rights: {
     label: "Rights & Metadata",
     window: "3 weeks out",
     intent: "Codes, splits, and metadata DSPs and royalty systems need.",
+    weeksOut: 3,
   },
   distribution: {
     label: "Distribution Setup",
     window: "2 weeks out",
     intent: "Distributor, upload, and store-front readiness.",
+    weeksOut: 2,
   },
   promo_prep: {
     label: "Promo Assets",
     window: "2 weeks out",
     intent: "Everything you'll need to post on release week.",
+    weeksOut: 2,
   },
   outreach: {
     label: "Outreach & Pre-Save",
     window: "1 week out",
     intent: "Get curators and your audience ready to listen.",
+    weeksOut: 1,
   },
   launch: {
     label: "Launch Day",
     window: "Day of",
     intent: "Coordinated push across every channel.",
+    weeksOut: 0,
   },
   post_release: {
     label: "Post-Release",
     window: "1–2 weeks after",
     intent: "Capture momentum and feed analytics into the next single.",
+    weeksOut: -1,
   },
 };
 

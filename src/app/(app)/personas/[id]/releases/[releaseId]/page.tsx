@@ -120,12 +120,41 @@ export default async function ReleasePage({
         {itemsByPhase().map(({ phase, items }) => {
           const phaseDone = items.filter((it) => checklist[it.id]).length;
           const meta = PHASE_META[phase];
+          const targetDate = release.releaseDate
+            ? new Date(
+                new Date(release.releaseDate).getTime() -
+                  meta.weeksOut * 7 * 24 * 60 * 60 * 1000,
+              )
+            : null;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const overdue =
+            targetDate !== null && targetDate < today && phaseDone < items.length;
+          const dateLabel = targetDate
+            ? targetDate.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })
+            : null;
           return (
-            <div key={phase} className="card">
+            <div
+              key={phase}
+              className={`card ${
+                overdue ? "border-amber-500/50" : ""
+              }`}
+            >
               <div className="flex items-baseline justify-between gap-3 mb-1">
                 <h2 className="font-medium">{meta.label}</h2>
-                <span className="text-[11px] uppercase tracking-wide text-[color:var(--color-muted)]">
-                  {meta.window} · {phaseDone}/{items.length}
+                <span
+                  className={`text-[11px] uppercase tracking-wide ${
+                    overdue
+                      ? "text-amber-300"
+                      : "text-[color:var(--color-muted)]"
+                  }`}
+                >
+                  {dateLabel ? `By ${dateLabel}` : meta.window} ·{" "}
+                  {phaseDone}/{items.length}
+                  {overdue && " · overdue"}
                 </span>
               </div>
               <p className="text-xs text-[color:var(--color-muted)] mb-3">
