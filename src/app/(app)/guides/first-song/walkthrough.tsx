@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -54,8 +54,30 @@ export function Walkthrough({
 }) {
   const [step, setStep] = useState(Math.min(initialStep, TOTAL_STEPS - 1));
   const [platform, setPlatform] = useState<Platform | null>(initialPlatform);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const completed = initialStep >= TOTAL_STEPS;
+
+  // Restore selected artist from localStorage; clear if it no longer exists.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("firstSong:personaId");
+    if (saved && personas.some((p) => p.id === saved)) {
+      setSelectedPersonaId(saved);
+    } else if (personas.length === 1) {
+      setSelectedPersonaId(personas[0].id);
+    }
+  }, [personas]);
+
+  function pickPersona(id: string) {
+    setSelectedPersonaId(id);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("firstSong:personaId", id);
+    }
+  }
+
+  const selectedPersona =
+    personas.find((p) => p.id === selectedPersonaId) ?? null;
 
   function go(next: number) {
     const clamped = Math.max(0, Math.min(TOTAL_STEPS - 1, next));
@@ -106,8 +128,8 @@ export function Walkthrough({
             Make your first song
           </h1>
           <p className="text-[color:var(--color-muted)] mt-1">
-            A 6-step walkthrough for Suno or Udio. Your progress saves
-            automatically.
+            A {TOTAL_STEPS}-step walkthrough for Suno or Udio. Your progress
+            saves automatically.
           </p>
         </div>
         <div className="flex gap-2">
@@ -164,11 +186,21 @@ export function Walkthrough({
         {step === 0 && (
           <PlatformPicker selected={platform} onSelect={pickPlatform} />
         )}
-        {step === 1 && <ArtistStep personas={personas} />}
-        {step === 2 && <LyricsStep personas={personas} platform={platform} />}
-        {step === 3 && <StyleStep personas={personas} platform={platform} />}
+        {step === 1 && (
+          <ArtistStep
+            personas={personas}
+            selectedId={selectedPersonaId}
+            onSelect={pickPersona}
+          />
+        )}
+        {step === 2 && (
+          <LyricsStep selectedPersona={selectedPersona} platform={platform} />
+        )}
+        {step === 3 && (
+          <StyleStep selectedPersona={selectedPersona} platform={platform} />
+        )}
         {step === 4 && <GenerateStep platform={platform} />}
-        {step === 5 && <SaveStep personas={personas} />}
+        {step === 5 && <SaveStep selectedPersona={selectedPersona} />}
         {step === 6 && <MasterStep />}
         {step === 7 && <AnalyzeStep />}
         {step === 8 && <DistributeStep onFinish={finish} />}
@@ -186,7 +218,16 @@ export function Walkthrough({
         {step < TOTAL_STEPS - 1 ? (
           <button
             onClick={() => go(step + 1)}
-            disabled={pending || (step === 0 && !platform)}
+            disabled={
+              pending ||
+              (step === 0 && !platform) ||
+              (step === 1 && !selectedPersonaId && personas.length > 0)
+            }
+            title={
+              step === 1 && !selectedPersonaId && personas.length > 0
+                ? "Pick an artist to continue"
+                : undefined
+            }
             className="btn-primary inline-flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
           >
             Next <ArrowRight className="h-4 w-4" />
@@ -308,7 +349,15 @@ function PlatformCard({
   );
 }
 
-function ArtistStep({ personas }: { personas: Persona[] }) {
+function ArtistStep({
+  personas,
+  selectedId,
+  onSelect,
+}: {
+  personas: Persona[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
   if (personas.length === 0) {
     return (
       <div className="space-y-3">
@@ -318,15 +367,17 @@ function ArtistStep({ personas }: { personas: Persona[] }) {
         </p>
         <div className="card border-dashed">
           <div className="text-sm mb-3">You don't have an artist yet.</div>
-          <Link
+          <a
             href="/personas/new"
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn-primary inline-flex items-center gap-1.5"
           >
-            <Sparkles className="h-4 w-4" /> Generate one in 60 seconds
-          </Link>
+            <Sparkles className="h-4 w-4" /> Generate one in a new tab
+          </a>
         </div>
         <p className="text-xs text-[color:var(--color-muted)]">
-          Come back to this step when you're done — your progress is saved.
+          Come back to this tab when you're done — your progress is saved.
         </p>
       </div>
     );
@@ -334,36 +385,68 @@ function ArtistStep({ personas }: { personas: Persona[] }) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-[color:var(--color-muted)]">
-        Pick the artist this song belongs to. Open their detail page to grab
-        the lyrics and style prompt in the next steps.
+        Pick the artist this song belongs to. The next steps will deep-link
+        you straight into their lyrics, prompts, and tracks.
       </p>
       <div className="grid sm:grid-cols-2 gap-2">
-        {personas.slice(0, 8).map((p) => (
-          <Link
-            key={p.id}
-            href={`/personas/${p.id}`}
-            className="card hover:border-[color:var(--color-accent)] transition-colors flex items-center justify-between text-sm"
-          >
-            <span className="font-medium truncate">{p.name}</span>
-            <ArrowRight className="h-4 w-4 text-[color:var(--color-muted)]" />
-          </Link>
-        ))}
+        {personas.slice(0, 12).map((p) => {
+          const active = selectedId === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onSelect(p.id)}
+              className={`card text-left flex items-center justify-between text-sm transition-colors ${
+                active
+                  ? "border-[color:var(--color-accent)] bg-[color:var(--color-accent)]/10"
+                  : "hover:border-[color:var(--color-accent)]"
+              }`}
+            >
+              <span className="font-medium truncate">{p.name}</span>
+              {active ? (
+                <Check className="h-4 w-4 text-[color:var(--color-accent)]" />
+              ) : (
+                <span className="text-xs text-[color:var(--color-muted)]">
+                  Select
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
-      <Link
+      {selectedId && (
+        <div className="flex items-center gap-2 text-xs">
+          <Check className="h-3.5 w-3.5 text-[color:var(--color-accent)]" />
+          <span className="text-[color:var(--color-muted)]">
+            Selected. Hit Next to continue.
+          </span>
+          <a
+            href={`/personas/${selectedId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1"
+          >
+            Open in new tab <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      )}
+      <a
         href="/personas/new"
+        target="_blank"
+        rel="noopener noreferrer"
         className="text-xs text-[color:var(--color-accent)] hover:opacity-80 inline-flex items-center gap-1"
       >
-        <Sparkles className="h-3.5 w-3.5" /> or generate a new one
-      </Link>
+        <Sparkles className="h-3.5 w-3.5" /> or generate a new one (new tab)
+      </a>
     </div>
   );
 }
 
 function LyricsStep({
-  personas,
+  selectedPersona,
   platform,
 }: {
-  personas: Persona[];
+  selectedPersona: Persona | null;
   platform: Platform | null;
 }) {
   const exampleLyrics = `[Verse 1]
@@ -431,23 +514,26 @@ We've been singing all along...`;
         text={exampleLyrics}
         lang="text"
       />
-      {personas.length > 0 && (
-        <Link
-          href={`/personas/${personas[0].id}`}
+      {selectedPersona && (
+        <a
+          href={`/personas/${selectedPersona.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
           className="btn-ghost inline-flex items-center gap-1.5 text-sm"
         >
-          Open artist <ArrowRight className="h-4 w-4" />
-        </Link>
+          Open {selectedPersona.name} in new tab{" "}
+          <ExternalLink className="h-4 w-4" />
+        </a>
       )}
     </div>
   );
 }
 
 function StyleStep({
-  personas,
+  selectedPersona,
   platform,
 }: {
-  personas: Persona[];
+  selectedPersona: Persona | null;
   platform: Platform | null;
 }) {
   const example =
@@ -479,13 +565,16 @@ function StyleStep({
         avoid artist names. Use descriptors instead ("90s grunge female alto"
         vs. naming a real artist) to dodge filters and stay original.
       </div>
-      {personas.length > 0 && (
-        <Link
-          href={`/personas/${personas[0].id}`}
+      {selectedPersona && (
+        <a
+          href={`/personas/${selectedPersona.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
           className="btn-ghost inline-flex items-center gap-1.5 text-sm"
         >
-          Build prompt on artist <ArrowRight className="h-4 w-4" />
-        </Link>
+          Build prompt on {selectedPersona.name}{" "}
+          <ExternalLink className="h-4 w-4" />
+        </a>
       )}
     </div>
   );
@@ -548,11 +637,10 @@ function GenerateStep({ platform }: { platform: Platform | null }) {
 }
 
 function SaveStep({
-  personas,
+  selectedPersona,
 }: {
-  personas: Persona[];
+  selectedPersona: Persona | null;
 }) {
-  const first = personas[0];
   return (
     <div className="space-y-4">
       <p className="text-sm text-[color:var(--color-muted)]">
@@ -579,20 +667,29 @@ function SaveStep({
         </li>
       </ol>
       <div className="flex flex-wrap gap-2">
-        {first && (
-          <Link
-            href={`/personas/${first.id}/tracks`}
+        {selectedPersona ? (
+          <a
+            href={`/personas/${selectedPersona.id}/tracks`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn-primary inline-flex items-center gap-1.5"
           >
-            <Music className="h-4 w-4" /> Add track to {first.name}
-          </Link>
+            <Music className="h-4 w-4" /> Add track to {selectedPersona.name}{" "}
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        ) : (
+          <span className="text-xs text-[color:var(--color-muted)]">
+            No artist selected — go back to step 2.
+          </span>
         )}
-        <Link
+        <a
           href="/library/tracks?new=manual"
+          target="_blank"
+          rel="noopener noreferrer"
           className="btn-ghost inline-flex items-center gap-1.5"
         >
-          Add to any artist
-        </Link>
+          Add to any artist <ExternalLink className="h-3.5 w-3.5" />
+        </a>
       </div>
       <p className="text-xs text-[color:var(--color-muted)]">
         Once your audio is uploaded, hit Next to learn how to master it.
