@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { signInAction, signUpAction, gitHubSignInAction } from "./actions";
+import type { AuthState } from "./actions";
 
 function GitHubIcon({ className }: { className?: string }) {
   return (
@@ -10,14 +12,12 @@ function GitHubIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-import { signInAction, signUpAction, gitHubSignInAction } from "./actions";
-import type { AuthState } from "./actions";
 
 function ErrorBanner({ message }: { message: string }) {
   return (
     <div
       role="alert"
-      className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300"
+      className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300 animate-[fadeSlideDown_200ms_ease_both]"
     >
       <svg
         viewBox="0 0 16 16"
@@ -238,21 +238,54 @@ export function SignInCard({
   hasGitHub: boolean;
 }) {
   const [tab, setTab] = useState<"signin" | "signup">(initialTab);
+  // Track whether the card has mounted so the entry animation only runs once
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  // Used to determine cross-fade direction
+  const prevTab = useRef(tab);
+  const [animKey, setAnimKey] = useState(0);
+  const [direction, setDirection] = useState<"left" | "right">("right");
+
+  function switchTab(next: "signin" | "signup") {
+    if (next === tab) return;
+    setDirection(next === "signup" ? "right" : "left");
+    prevTab.current = tab;
+    setTab(next);
+    setAnimKey((k) => k + 1);
+  }
+
+  const slideIn =
+    direction === "right"
+      ? "animate-[slideInRight_220ms_ease_both]"
+      : "animate-[slideInLeft_220ms_ease_both]";
 
   return (
-    <div className="w-full max-w-sm space-y-6">
-      {/* Tab switcher */}
+    <div
+      className={`w-full max-w-sm space-y-5 transition-all duration-500 ${
+        mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+      }`}
+    >
+      {/* Sliding tab switcher */}
       <div
-        className="flex rounded-lg border border-[color:var(--color-border)] p-1 text-sm font-medium"
+        className="relative flex rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-1 text-sm font-medium"
         role="tablist"
       >
+        {/* Sliding pill */}
+        <div
+          aria-hidden="true"
+          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-[color:var(--color-accent)] shadow-sm transition-transform duration-200 ease-out ${
+            tab === "signup" ? "translate-x-[calc(100%+8px)]" : "translate-x-0"
+          }`}
+          style={{ left: 4 }}
+        />
         <button
           role="tab"
           aria-selected={tab === "signin"}
-          onClick={() => setTab("signin")}
-          className={`flex-1 rounded-md px-4 py-2 transition-colors ${
+          onClick={() => switchTab("signin")}
+          className={`relative z-10 flex-1 rounded-lg px-4 py-2 transition-colors duration-150 ${
             tab === "signin"
-              ? "bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]"
+              ? "text-[color:var(--color-accent-fg)]"
               : "text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]"
           }`}
         >
@@ -261,10 +294,10 @@ export function SignInCard({
         <button
           role="tab"
           aria-selected={tab === "signup"}
-          onClick={() => setTab("signup")}
-          className={`flex-1 rounded-md px-4 py-2 transition-colors ${
+          onClick={() => switchTab("signup")}
+          className={`relative z-10 flex-1 rounded-lg px-4 py-2 transition-colors duration-150 ${
             tab === "signup"
-              ? "bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]"
+              ? "text-[color:var(--color-accent-fg)]"
               : "text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]"
           }`}
         >
@@ -272,13 +305,15 @@ export function SignInCard({
         </button>
       </div>
 
-      {/* Form panel */}
-      <div className="card">
-        {tab === "signin" ? (
-          <SignInForm onSwitch={() => setTab("signup")} />
-        ) : (
-          <SignUpForm onSwitch={() => setTab("signin")} />
-        )}
+      {/* Form panel — overflow hidden keeps the slide within bounds */}
+      <div className="card overflow-hidden p-6">
+        <div key={animKey} className={slideIn}>
+          {tab === "signin" ? (
+            <SignInForm onSwitch={() => switchTab("signup")} />
+          ) : (
+            <SignUpForm onSwitch={() => switchTab("signin")} />
+          )}
+        </div>
       </div>
 
       {/* GitHub SSO */}
@@ -292,7 +327,7 @@ export function SignInCard({
           <form action={gitHubSignInAction}>
             <button
               type="submit"
-              className="btn-ghost btn w-full justify-center gap-2"
+              className="btn-ghost btn w-full justify-center gap-2 transition-all hover:bg-[color:var(--color-bg-elev)]"
             >
               <GitHubIcon className="h-4 w-4" />
               GitHub
