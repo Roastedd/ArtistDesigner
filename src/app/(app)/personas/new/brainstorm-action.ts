@@ -67,27 +67,51 @@ export async function brainstormPersona(
   if (!vibe) return { ok: false, error: "Describe a vibe first" };
   if (vibe.length > 600) return { ok: false, error: "Keep it under 600 characters" };
 
-  let raw: string;
-  try {
-    raw = await generate({
-      // Use a fast, reliable model for structured output
-      model: "google/gemini-flash-1.5",
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: `Vibe: ${vibe}` },
-      ],
-      temperature: 0.9,
-      max_tokens: 700,
-    });
-  } catch (err) {
-    console.error("[brainstorm] generate error:", err);
-    const msg = err instanceof Error ? err.message : String(err);
-    // Surface OpenRouter error codes to the user in a readable way
-    if (msg.includes("402")) return { ok: false, error: "AI quota exceeded — try again later" };
+  // Try a sequence of models so a single bad/unavailable slug doesn't kill the
+  // whole feature. First entry honors the env override if present.
+  const envModel = process.env.OPENROUTER_DEFAULT_MODEL?.trim();
+  const MODELS = [
+    ...(envModel ? [envModel] : []),
+    "openai/gpt-oss-20b:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "openrouter/auto",
+  ];
+
+  let raw = "";
+  let lastErr: unknown = null;
+  for (const model of MODELS) {
+    try {
+      raw = await generate({
+        model,
+        messages: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content: `Vibe: ${vibe}` },
+        ],
+        temperature: 0.9,
+        max_tokens: 700,
+      });
+      if (raw && raw.trim()) {
+        console.log(`[brainstorm] ok via ${model}`);
+        break;
+      }
+      console.warn(`[brainstorm] empty response from ${model}, trying next`);
+    } catch (err) {
+      lastErr = err;
+      console.error(`[brainstorm] ${model} failed:`, err);
+    }
+  }
+
+  if (!raw || !raw.trim()) {
+    const msg = lastErr instanceof Error ? lastErr.message : String(lastErr ?? "no response");
+    if (msg.includes("401") || msg.includes("403"))
+      return { ok: false, error: "AI auth failed — check OPENROUTER_API_KEY" };
+    if (msg.includes("402")) return { ok: false, error: "AI quota exceeded — top up OpenRouter credits" };
     if (msg.includes("429")) return { ok: false, error: "Too many requests — try again in a moment" };
     if (msg.includes("503") || msg.includes("529"))
       return { ok: false, error: "AI model is overloaded — try again in a moment" };
-    return { ok: false, error: "AI generation failed — try again" };
+    // Show first 140 chars of underlying error so the dev can see what's wrong
+    const trimmed = msg.replace(/\s+/g, " ").slice(0, 140);
+    return { ok: false, error: `AI generation failed: ${trimmed}` };
   }
 
   let parsed: BrainstormResult;
