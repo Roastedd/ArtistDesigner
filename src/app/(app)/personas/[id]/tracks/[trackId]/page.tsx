@@ -8,6 +8,7 @@ import { updateTrack } from "../actions";
 import { deleteTrack } from "../../albums/actions";
 import TrackStudio from "./track-studio";
 import { AudioUploadField } from "./audio-upload-field";
+import { SongInsights } from "./song-insights";
 import { DeleteButton } from "@/components/delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 
@@ -169,6 +170,12 @@ export default async function TrackPage({
           model: l.model,
           createdAt: l.createdAt.toISOString(),
         }))}
+      />
+
+      <SongInsights
+        personaId={id}
+        trackId={trackId}
+        hasAudio={Boolean(track.audioUrl)}
       />
     </div>
   );

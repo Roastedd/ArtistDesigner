@@ -7,7 +7,18 @@ const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
-  content: string;
+  content:
+    | string
+    | Array<
+        | { type: "text"; text: string }
+        | {
+            type: "input_audio";
+            input_audio: {
+              data: string;
+              format: "wav" | "mp3" | "ogg" | "flac" | "m4a" | "aac";
+            };
+          }
+      >;
 };
 
 export type GenerateOptions = {
@@ -59,6 +70,8 @@ export const MODEL_PRESETS = {
   fastFree: "openai/gpt-oss-20b:free",
   /** Quality + free: OpenAI GPT-OSS 120B (free tier, best reliable free option) */
   qualityFree: "openai/gpt-oss-120b:free",
+  /** Low-cost audio understanding */
+  audioCheap: "openai/gpt-audio-mini",
   /** Paid balanced: Claude 3.5 Sonnet */
   paidBalanced: "anthropic/claude-3.5-sonnet",
   /** Paid top: Claude Sonnet 4.6 (latest) */
