@@ -182,12 +182,19 @@ export const tracks = pgTable("track", {
   bpm: integer("bpm"),
   keySignature: text("key_signature"),
   durationSec: integer("duration_sec"),
+  // Provenance: where this clip actually came from.
+  externalSource: text("external_source"), // 'suno' | 'udio' | 'manual' | null
+  externalUrl: text("external_url"),
+  externalId: text("external_id"),
+  stylePrompt: text("style_prompt"), // the style/description that produced the clip
+  importedAt: timestamp("imported_at", { withTimezone: true }),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("track_persona_idx").on(t.personaId),
   index("track_album_idx").on(t.albumId),
   index("track_persona_created_idx").on(t.personaId, t.createdAt),
   index("track_status_idx").on(t.status),
+  index("track_external_source_idx").on(t.externalSource),
 ]);
 
 export const promptVersions = pgTable("prompt_version", {
@@ -209,8 +216,49 @@ export const lyricVersions = pgTable("lyric_version", {
   body: text("body").notNull(),
   structure: jsonb("structure").$type<{ section: string; text: string }[]>().default([]),
   model: text("model"),
+  // Where the lyric came from. Drives the "Suno-written" badge in UI.
+  source: text("source"), // 'ad-forge' | 'suno' | 'udio' | 'manual' | null
+  sourceUrl: text("source_url"),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/**
+ * Frequency-weighted style signals captured from saved Suno/Udio clips.
+ * Drives the persona "Signature" card and feeds future Forge generations
+ * as in-context examples of what's actually working for this artist.
+ */
+export const personaSignals = pgTable("persona_signal", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  personaId: uuid("persona_id")
+    .notNull()
+    .references(() => personas.id, { onDelete: "cascade" }),
+  signalType: text("signal_type").notNull(), // 'genre' | 'mood' | 'instrument' | 'vocal' | 'tempo' | 'tag'
+  value: text("value").notNull(),
+  weight: integer("weight").default(1).notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("persona_signal_persona_idx").on(t.personaId),
+  index("persona_signal_persona_type_idx").on(t.personaId, t.signalType),
+]);
+
+/**
+ * Pinned "this is canonical for the artist" clips. The style prompt that
+ * produced them gets fed back into the Forge as exemplars.
+ */
+export const trackExemplars = pgTable("track_exemplar", {
+  trackId: uuid("track_id")
+    .primaryKey()
+    .references(() => tracks.id, { onDelete: "cascade" }),
+  personaId: uuid("persona_id")
+    .notNull()
+    .references(() => personas.id, { onDelete: "cascade" }),
+  stylePrompt: text("style_prompt"),
+  note: text("note"),
+  pinnedAt: timestamp("pinned_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("track_exemplar_persona_idx").on(t.personaId),
+]);
 
 export const releases = pgTable("release", {
   id: uuid("id").primaryKey().defaultRandom(),

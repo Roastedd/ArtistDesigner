@@ -5,10 +5,11 @@ export function PersonaTabs({
   active,
 }: {
   personaId: string;
-  active: "studio" | "albums" | "tracks" | "eras" | "releases";
+  active: "studio" | "signature" | "albums" | "tracks" | "eras" | "releases";
 }) {
   const tabs = [
     ["studio", "Studio", `/personas/${personaId}`],
+    ["signature", "Signature", `/personas/${personaId}/signature`],
     ["albums", "Albums", `/personas/${personaId}/albums`],
     ["tracks", "Tracks", `/personas/${personaId}/tracks`],
     ["eras", "Eras", `/personas/${personaId}/eras`],

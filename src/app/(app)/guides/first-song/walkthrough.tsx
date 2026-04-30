@@ -27,6 +27,7 @@ import {
   setOnboardingPlatform,
   setOnboardingStep,
 } from "./actions";
+import { importExternalClip } from "../../personas/suno-capture-actions";
 
 type Persona = { id: string; name: string };
 type Platform = "suno" | "udio";
@@ -1235,91 +1236,212 @@ function SaveStep({
   return (
     <div className="space-y-4">
       <p className="text-sm text-[color:var(--color-muted)]">
-        Bring your finished take back into ArtistDesigner so it lives with the
-        artist, can join an album, and ships with a release checklist.
+        Suno doesn&apos;t remember your artist&apos;s identity — we do. Save
+        each clip back here and ArtistDesigner builds your singer&apos;s
+        signature: which styles work, which lyrics they sing best, which
+        prompts to reuse.
       </p>
-      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
-        <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
-          Step-by-step
+      {selectedPersona ? (
+        <CaptureClipForm persona={selectedPersona} />
+      ) : (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+          Pick or create an artist in step 2 first — clips need to attach to
+          a persona so the signature can grow.
         </div>
-        <ol className="text-sm space-y-2 list-decimal pl-5">
+      )}
+
+      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-xs space-y-1.5">
+        <div className="font-semibold">Where to find each field on Suno</div>
+        <ul className="space-y-1 text-[color:var(--color-muted)]">
           <li>
-            <strong>On Suno/Udio:</strong> hover the finished track → click
-            the <strong>⋯ menu</strong> → <strong>Download</strong>. Pick MP3
-            (free) or WAV (paid).
+            <strong>Share URL</strong> — click the song → <strong>Share</strong>{" "}
+            → copy the link.
           </li>
           <li>
-            <strong>Save the cover art too.</strong> On Suno: click the song,
-            right-click the artwork → &quot;Save image as…&quot;. On Udio:
-            ⋯ menu → <strong>Download cover</strong>.
+            <strong>Style</strong> — open the song details panel, copy the
+            full &quot;Style of Music&quot; tag string (commas and all). This
+            is what powers the Signature card.
           </li>
           <li>
-            {selectedPersona ? (
-              <>
-                Open{" "}
-                <a
-                  href={`/personas/${selectedPersona.id}/tracks`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1"
-                >
-                  <strong>{selectedPersona.name} → Tracks</strong>{" "}
-                  <ExternalLink className="h-3 w-3" />
-                </a>{" "}
-                in a new tab and click <strong>+ New track</strong>.
-              </>
-            ) : (
-              <>Go back to step 2 and pick or create your artist first.</>
-            )}
+            <strong>Lyrics</strong> — same panel, &quot;Lyrics&quot; section,
+            copy the full body including [Verse]/[Chorus] tags.
           </li>
           <li>
-            Fill in:
-            <ul className="list-disc pl-5 mt-1 text-xs space-y-0.5 text-[color:var(--color-muted)]">
-              <li><strong>Title</strong> — what you&apos;ll release it as</li>
-              <li><strong>Lyrics</strong> — paste the same lyrics you used</li>
-              <li><strong>Audio file</strong> — drop the MP3/WAV you just downloaded</li>
-              <li><strong>Status</strong> — set to <em>Mixed</em> for now (you&apos;ll change to <em>Mastered</em> after step 7)</li>
-            </ul>
+            <strong>Audio URL</strong> (optional) — right-click the play
+            button → <em>Copy audio address</em>. Or just paste the share URL
+            and add audio later.
           </li>
-          <li>
-            Hit <strong>Save</strong>. The track appears on your artist&apos;s
-            page and gets a public URL when the artist is published.
-          </li>
-          <li>
-            <em>Optional:</em> Group several tracks into an album from{" "}
-            <strong>{selectedPersona?.name ?? "Your artist"} → Albums →
-            New album</strong>.
-          </li>
-        </ol>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {selectedPersona ? (
-          <a
-            href={`/personas/${selectedPersona.id}/tracks`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary inline-flex items-center gap-1.5"
-          >
-            <Music className="h-4 w-4" /> Add track to {selectedPersona.name}{" "}
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        ) : (
-          <span className="text-xs text-[color:var(--color-muted)]">
-            No artist selected — go back to step 2.
-          </span>
-        )}
-        <a
-          href="/library/tracks?new=manual"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-ghost inline-flex items-center gap-1.5"
-        >
-          Add to any artist <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        </ul>
       </div>
       <p className="text-xs text-[color:var(--color-muted)]">
-        Once your audio is uploaded, hit Next to learn how to master it.
+        Pin clips you love as <strong>exemplars</strong> — they become the
+        in-context examples for any future Forge generation, so the AI starts
+        sounding like your artist&apos;s actual hits.
       </p>
+    </div>
+  );
+}
+
+function CaptureClipForm({ persona }: { persona: Persona }) {
+  const [title, setTitle] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
+  const [stylePrompt, setStylePrompt] = useState("");
+  const [lyrics, setLyrics] = useState("");
+  const [audioUrl, setAudioUrl] = useState("");
+  const [pin, setPin] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  async function save() {
+    if (!title.trim()) {
+      toast.error("Give it a title");
+      return;
+    }
+    setBusy(true);
+    setSavedId(null);
+    try {
+      const res = await importExternalClip({
+        personaId: persona.id,
+        source: "suno",
+        title: title.trim(),
+        externalUrl: externalUrl.trim() || undefined,
+        stylePrompt: stylePrompt.trim() || undefined,
+        lyrics: lyrics.trim() || undefined,
+        audioUrl: audioUrl.trim() || undefined,
+        pinAsExemplar: pin,
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setSavedId(res.trackId);
+      toast.success("Saved to " + persona.name);
+      setTitle("");
+      setExternalUrl("");
+      setStylePrompt("");
+      setLyrics("");
+      setAudioUrl("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
+          Save Suno clip → {persona.name}
+        </div>
+        <a
+          href="https://suno.com/me"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1"
+        >
+          Open Suno library <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-xs text-[color:var(--color-muted)]">Title *</span>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full px-3 py-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] text-sm"
+          placeholder="Working title for this clip"
+        />
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-xs text-[color:var(--color-muted)]">
+          Suno share URL
+        </span>
+        <input
+          value={externalUrl}
+          onChange={(e) => setExternalUrl(e.target.value)}
+          className="w-full px-3 py-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] text-sm font-mono"
+          placeholder="https://suno.com/song/..."
+        />
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-xs text-[color:var(--color-muted)]">
+          Style of Music (the comma-list Suno used) — this builds your Signature
+        </span>
+        <textarea
+          value={stylePrompt}
+          onChange={(e) => setStylePrompt(e.target.value)}
+          rows={2}
+          className="w-full px-3 py-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] text-sm font-mono"
+          placeholder="dark synthwave, female alto, 110 bpm, anthemic chorus, moody"
+        />
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-xs text-[color:var(--color-muted)]">
+          Lyrics (paste the body Suno used or generated)
+        </span>
+        <textarea
+          value={lyrics}
+          onChange={(e) => setLyrics(e.target.value)}
+          rows={5}
+          className="w-full px-3 py-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] text-sm font-mono"
+          placeholder={"[Verse 1]\n...\n\n[Chorus]\n..."}
+        />
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-xs text-[color:var(--color-muted)]">
+          Audio URL (optional — Suno stream link or your uploaded MP3)
+        </span>
+        <input
+          value={audioUrl}
+          onChange={(e) => setAudioUrl(e.target.value)}
+          className="w-full px-3 py-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] text-sm font-mono"
+          placeholder="https://..."
+        />
+      </label>
+
+      <label className="flex items-center gap-2 text-xs text-[color:var(--color-muted)] cursor-pointer">
+        <input
+          type="checkbox"
+          checked={pin}
+          onChange={(e) => setPin(e.target.checked)}
+          className="accent-[color:var(--color-accent)]"
+        />
+        Pin as <strong>exemplar</strong> — this style becomes the reference
+        for future Forge generations
+      </label>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={save}
+          disabled={busy || !title.trim()}
+          className="btn-primary inline-flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
+        >
+          {busy ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+            </>
+          ) : (
+            <>
+              <Music className="h-4 w-4" /> Save to {persona.name}
+            </>
+          )}
+        </button>
+        {savedId && (
+          <a
+            href={`/personas/${persona.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1"
+          >
+            View on persona <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </div>
     </div>
   );
 }
