@@ -24,6 +24,9 @@ export const users = pgTable("user", {
   email: text("email").unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  // Per-user UI preferences
+  theme: text("theme").default("dark").notNull(), // 'dark' | 'light'
+  accentColor: text("accent_color"), // hex e.g. #a78bfa, falls back to default
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -105,6 +108,9 @@ export const personas = pgTable("persona", {
   // Single locked "Persona Core" prompt block (auto-generated/edited)
   personaCore: text("persona_core"),
   isPublic: boolean("is_public").default(false).notNull(),
+  // Soft-delete: rows with deletedAt set are hidden from normal lists
+  // and can be restored or hard-deleted from the trash view.
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -130,6 +136,7 @@ export const albums = pgTable("album", {
   title: text("title").notNull(),
   concept: text("concept"),
   coverUrl: text("cover_url"),
+  orderIndex: integer("order_index").default(0).notNull(),
   releaseDate: timestamp("release_date", { mode: "date" }),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });

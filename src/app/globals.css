@@ -12,6 +12,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Light theme — applied when [data-theme="light"] is set on the app shell. */
+[data-theme="light"] {
+  --color-bg: #fafafa;
+  --color-bg-elev: #ffffff;
+  --color-border: #e4e4e7;
+  --color-fg: #0a0a0b;
+  --color-muted: #6b6b74;
+  --color-accent-fg: #ffffff;
+}
+
 html, body { background: var(--color-bg); color: var(--color-fg); }
 body { font-family: var(--font-sans), system-ui, sans-serif; }
 

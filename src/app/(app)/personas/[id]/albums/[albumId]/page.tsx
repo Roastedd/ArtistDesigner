@@ -6,7 +6,7 @@ import { requireUserId } from "@/lib/require-auth";
 import { db } from "@/db";
 import { albums, personas, tracks } from "@/db/schema";
 import { PersonaTabs } from "../../persona-tabs";
-import { createTrack, updateAlbum, deleteAlbum, deleteTrack, reorderTracks } from "../actions";
+import { createTrack, updateAlbum, deleteAlbum, generateAlbumCover } from "../actions";
 import { listEras } from "../../eras/actions";
 import { DeleteButton } from "@/components/delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -89,7 +89,7 @@ export default async function AlbumPage({
       </div>
 
       <div className="grid md:grid-cols-[200px_1fr] gap-6 mb-8">
-        <div>
+        <div className="space-y-2">
           {a.coverUrl ? (
             <Image
               src={a.coverUrl}
@@ -104,6 +104,16 @@ export default async function AlbumPage({
               No cover
             </div>
           )}
+          <form
+            action={async () => {
+              "use server";
+              await generateAlbumCover(id, albumId);
+            }}
+          >
+            <button className="btn-ghost btn text-xs w-full justify-center">
+              ✨ Generate cover art
+            </button>
+          </form>
         </div>
         <form
           action={updateAlbum.bind(null, id, albumId)}

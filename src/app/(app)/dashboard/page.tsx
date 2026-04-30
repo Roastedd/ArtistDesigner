@@ -2,12 +2,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/db";
 import { personas, albums, tracks, releases } from "@/db/schema";
-import { eq, sql, inArray } from "drizzle-orm";
+import { and, eq, isNull, sql, inArray } from "drizzle-orm";
 import { requireUserId } from "@/lib/require-auth";
 
 export default async function Dashboard() {
   const userId = await requireUserId();
-  const list = await db.select().from(personas).where(eq(personas.userId, userId));
+  const list = await db
+    .select()
+    .from(personas)
+    .where(and(eq(personas.userId, userId), isNull(personas.deletedAt)));
 
   // Fetch latest cover + track count for each persona
   const personaIds = list.map((p) => p.id);

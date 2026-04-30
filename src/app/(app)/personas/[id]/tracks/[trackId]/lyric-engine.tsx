@@ -74,6 +74,7 @@ export default function LyricEngine({
   const [model, setModel] = useState<string>(MODEL_PRESETS.fastFree);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
 
   function update(id: string, patch: Partial<Section>) {
     setSections((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -94,6 +95,22 @@ export default function LyricEngine({
       [copy[i], copy[j]] = [copy[j], copy[i]];
       return copy;
     });
+  }
+  function dropOn(targetId: string) {
+    if (!dragId || dragId === targetId) {
+      setDragId(null);
+      return;
+    }
+    setSections((s) => {
+      const from = s.findIndex((x) => x.id === dragId);
+      const to = s.findIndex((x) => x.id === targetId);
+      if (from < 0 || to < 0) return s;
+      const next = [...s];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setDragId(null);
   }
 
   async function generateSection(sec: Section) {
@@ -200,8 +217,24 @@ export default function LyricEngine({
         </div>
 
         {sections.map((sec) => (
-          <div key={sec.id} className="card space-y-2">
+          <div
+            key={sec.id}
+            draggable
+            onDragStart={() => setDragId(sec.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => dropOn(sec.id)}
+            onDragEnd={() => setDragId(null)}
+            className={`card space-y-2 ${
+              dragId === sec.id ? "opacity-50" : ""
+            }`}
+          >
             <div className="flex items-center gap-2">
+              <span
+                className="cursor-grab select-none text-[color:var(--color-muted)] text-xs px-1"
+                title="Drag to reorder"
+              >
+                ⋮⋮
+              </span>
               <input
                 value={sec.label}
                 onChange={(e) => update(sec.id, { label: e.target.value })}

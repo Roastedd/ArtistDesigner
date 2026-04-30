@@ -86,13 +86,182 @@ export async function deletePersona(personaId: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
+  // Soft delete: mark as deleted, hide from public + listing.
   await db
-    .delete(personas)
+    .update(personas)
+    .set({ deletedAt: new Date(), isPublic: false, updatedAt: new Date() })
     .where(and(eq(personas.id, personaId), eq(personas.userId, session.user.id)));
 
   revalidatePath("/dashboard");
   revalidatePath("/personas");
-  redirect("/dashboard");
+  revalidatePath("/personas/trash");
+  redirect("/personas/trash?just=" + personaId);
+}
+
+export async function restorePersona(personaId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  await db
+    .update(personas)
+    .set({ deletedAt: null, updatedAt: new Date() })
+    .where(and(eq(personas.id, personaId), eq(personas.userId, session.user.id)));
+  revalidatePath("/dashboard");
+  revalidatePath("/personas");
+  revalidatePath("/personas/trash");
+}
+
+export async function hardDeletePersona(personaId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  await db
+    .delete(personas)
+    .where(and(eq(personas.id, personaId), eq(personas.userId, session.user.id)));
+  revalidatePath("/personas/trash");
+  redirect("/personas/trash");
+}
+
+/**
+ * Import a persona from an export JSON. Mirrors the shape produced by
+ * GET /api/personas/[id]/export. New IDs are generated for every row;
+ * the new persona is private and gets a fresh slug.
+ */
+type ImportPayload = {
+  persona?: Partial<typeof personas.$inferSelect> & { name?: string };
+  eras?: Array<typeof eras.$inferSelect>;
+  albums?: Array<typeof albums.$inferSelect>;
+  tracks?: Array<typeof tracks.$inferSelect>;
+  promptVersions?: Array<typeof promptVersions.$inferSelect>;
+  lyricVersions?: Array<typeof lyricVersions.$inferSelect>;
+  releases?: Array<typeof releases.$inferSelect>;
+};
+
+export async function importPersona(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const raw = String(formData.get("payload") ?? "").trim();
+  if (!raw) throw new Error("Paste an exported persona JSON.");
+  let data: ImportPayload;
+  try {
+    data = JSON.parse(raw) as ImportPayload;
+  } catch {
+    throw new Error("Invalid JSON.");
+  }
+  const src = data.persona;
+  if (!src?.name) throw new Error("Payload missing persona.name");
+
+  const newName = src.name;
+  const [created] = await db
+    .insert(personas)
+    .values({
+      userId: session.user.id,
+      name: newName,
+      slug: slugify(newName) + "-" + Math.random().toString(36).slice(2, 6),
+      tagline: src.tagline ?? null,
+      bio: src.bio ?? null,
+      genres: src.genres ?? [],
+      bpmMin: src.bpmMin ?? null,
+      bpmMax: src.bpmMax ?? null,
+      vocalStyle: src.vocalStyle ?? null,
+      instrumentation: src.instrumentation ?? [],
+      mixAesthetic: src.mixAesthetic ?? null,
+      colorPalette: src.colorPalette ?? [],
+      visualRefs: src.visualRefs ?? [],
+      imagePromptTemplate: src.imagePromptTemplate ?? null,
+      slang: src.slang ?? [],
+      motifs: src.motifs ?? [],
+      forbiddenWords: src.forbiddenWords ?? [],
+      influences: src.influences ?? [],
+      personaCore: src.personaCore ?? null,
+      isPublic: false,
+    })
+    .returning({ id: personas.id });
+
+  const eraMap = new Map<string, string>();
+  for (const e of data.eras ?? []) {
+    const [ne] = await db
+      .insert(eras)
+      .values({
+        personaId: created.id,
+        name: e.name,
+        description: e.description ?? null,
+        orderIndex: e.orderIndex ?? 0,
+        dnaOverrides: e.dnaOverrides ?? {},
+      })
+      .returning({ id: eras.id });
+    eraMap.set(e.id, ne.id);
+  }
+
+  const albumMap = new Map<string, string>();
+  for (const a of data.albums ?? []) {
+    const [na] = await db
+      .insert(albums)
+      .values({
+        personaId: created.id,
+        eraId: a.eraId ? eraMap.get(a.eraId) ?? null : null,
+        title: a.title,
+        concept: a.concept ?? null,
+        coverUrl: a.coverUrl ?? null,
+        orderIndex: a.orderIndex ?? 0,
+        releaseDate: a.releaseDate ? new Date(a.releaseDate) : null,
+      })
+      .returning({ id: albums.id });
+    albumMap.set(a.id, na.id);
+  }
+
+  const trackMap = new Map<string, string>();
+  for (const t of data.tracks ?? []) {
+    const [nt] = await db
+      .insert(tracks)
+      .values({
+        personaId: created.id,
+        albumId: t.albumId ? albumMap.get(t.albumId) ?? null : null,
+        title: t.title,
+        status: t.status ?? "idea",
+        orderIndex: t.orderIndex ?? 0,
+        notes: t.notes ?? null,
+        audioUrl: t.audioUrl ?? null,
+        bpm: t.bpm ?? null,
+        keySignature: t.keySignature ?? null,
+        durationSec: t.durationSec ?? null,
+      })
+      .returning({ id: tracks.id });
+    trackMap.set(t.id, nt.id);
+  }
+
+  for (const pv of data.promptVersions ?? []) {
+    const newTrackId = trackMap.get(pv.trackId);
+    if (!newTrackId) continue;
+    await db.insert(promptVersions).values({
+      trackId: newTrackId,
+      target: pv.target,
+      body: pv.body,
+      model: pv.model ?? null,
+    });
+  }
+  for (const lv of data.lyricVersions ?? []) {
+    const newTrackId = trackMap.get(lv.trackId);
+    if (!newTrackId) continue;
+    await db.insert(lyricVersions).values({
+      trackId: newTrackId,
+      body: lv.body,
+      structure: lv.structure ?? [],
+      model: lv.model ?? null,
+    });
+  }
+  for (const r of data.releases ?? []) {
+    await db.insert(releases).values({
+      personaId: created.id,
+      albumId: r.albumId ? albumMap.get(r.albumId) ?? null : null,
+      distributor: r.distributor ?? null,
+      upc: r.upc ?? null,
+      releaseDate: r.releaseDate ? new Date(r.releaseDate) : null,
+      checklist: r.checklist ?? {},
+    });
+  }
+
+  revalidatePath("/dashboard");
+  redirect(`/personas/${created.id}`);
 }
 
 export async function regeneratePersonaCore(personaId: string) {

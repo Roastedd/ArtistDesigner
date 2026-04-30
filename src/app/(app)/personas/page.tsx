@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { personas } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { requireUserId } from "@/lib/require-auth";
 
 export default async function PersonasPage() {
@@ -9,13 +9,21 @@ export default async function PersonasPage() {
   const list = await db
     .select()
     .from(personas)
-    .where(eq(personas.userId, userId));
+    .where(and(eq(personas.userId, userId), isNull(personas.deletedAt)));
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-semibold">Personas</h1>
-        <Link href="/personas/new" className="btn">+ New persona</Link>
+        <div className="flex items-center gap-2">
+          <Link href="/personas/trash" className="btn-ghost btn">
+            Trash
+          </Link>
+          <Link href="/personas/import" className="btn-ghost btn">
+            Import
+          </Link>
+          <Link href="/personas/new" className="btn">+ New persona</Link>
+        </div>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
         {list.length === 0 && (

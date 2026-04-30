@@ -1,10 +1,37 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import type { Metadata } from "next";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { albums, eras, personas, tracks } from "@/db/schema";
 
 export const revalidate = 60;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const [p] = await db
+    .select({ name: personas.name, tagline: personas.tagline, bio: personas.bio })
+    .from(personas)
+    .where(
+      and(
+        eq(personas.slug, slug),
+        eq(personas.isPublic, true),
+        isNull(personas.deletedAt),
+      ),
+    );
+  if (!p) return { title: "Not found" };
+  const description = p.tagline ?? p.bio?.slice(0, 160) ?? `${p.name} on ArtistDesigner`;
+  return {
+    title: `${p.name} — ArtistDesigner`,
+    description,
+    openGraph: { title: p.name, description, type: "profile" },
+    twitter: { card: "summary_large_image", title: p.name, description },
+  };
+}
 
 export default async function PublicPersonaPage({
   params,
@@ -15,7 +42,13 @@ export default async function PublicPersonaPage({
   const [p] = await db
     .select()
     .from(personas)
-    .where(and(eq(personas.slug, slug), eq(personas.isPublic, true)));
+    .where(
+      and(
+        eq(personas.slug, slug),
+        eq(personas.isPublic, true),
+        isNull(personas.deletedAt),
+      ),
+    );
   if (!p) notFound();
 
   const [albumList, trackList, eraList] = await Promise.all([
