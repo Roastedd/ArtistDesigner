@@ -1,7 +1,7 @@
 /**
  * Thin OpenRouter client. Use any model slug from
  * https://openrouter.ai/models — including free tiers
- * (e.g. "deepseek/deepseek-chat-v3.1:free", "google/gemini-2.0-flash-exp:free").
+ * (e.g. "openai/gpt-oss-20b:free", "openai/gpt-oss-120b:free").
  */
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -55,8 +55,8 @@ export async function generate({
 
 /** Curated default models — tweak to taste. */
 export const MODEL_PRESETS = {
-  fastFree: "deepseek/deepseek-chat-v3.1:free",
-  qualityFree: "google/gemini-2.0-flash-exp:free",
+  fastFree: "openai/gpt-oss-20b:free",
+  qualityFree: "openai/gpt-oss-120b:free",
   paidBalanced: "anthropic/claude-3.5-sonnet",
   paidTop: "anthropic/claude-sonnet-4.5",
   auto: "openrouter/auto",
