@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { MODEL_PRESETS } from "@/lib/openrouter";
+import { lintLyrics, type LyricLint } from "@/lib/persona-prompt";
 
 type Section = { id: string; label: string; text: string };
 type StoredSection = { section: string; text: string };
@@ -72,6 +73,10 @@ export default function LyricEngine({
   });
   const [theme, setTheme] = useState("");
   const [model, setModel] = useState<string>(MODEL_PRESETS.fastFree);
+  const [pov, setPov] = useState<"first" | "second" | "third">("first");
+  const [syllables, setSyllables] = useState(7);
+  const [hookLine, setHookLine] = useState("");
+  const [explicit, setExplicit] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -123,33 +128,43 @@ export default function LyricEngine({
     toast.success("Lyrics imported — edit away!");
   }
 
+  const fullLint: LyricLint[] = useMemo(
+    () => lintLyrics(sectionsToBody(sections)),
+    [sections],
+  );
+
   async function generateSection(sec: Section) {
     setBusyId(sec.id);
     try {
-      const context = sectionsToBody(sections);
-      const brief = [
-        `Write the ${sec.label} for this song.`,
-        theme ? `Overall theme/brief: ${theme}` : "",
-        sec.text.trim()
-          ? `Existing draft for this section to refine:\n${sec.text}`
-          : "",
-        context.trim()
-          ? `Existing other sections of the song for continuity:\n${context}`
-          : "",
-        `Output ONLY the lines for the ${sec.label}. No section header, no commentary.`,
-      ]
-        .filter(Boolean)
-        .join("\n\n");
+      const context = sectionsToBody(sections.filter((s) => s.id !== sec.id));
+      const isChorusish = /chorus|hook/i.test(sec.label);
+      const lineCount = isChorusish ? 4 : 6;
 
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ personaId, mode: "lyrics", brief, model }),
+        body: JSON.stringify({
+          personaId,
+          mode: "lyrics",
+          brief: theme || `Write the ${sec.label}.`,
+          model,
+          controls: {
+            section: sec.label,
+            pov,
+            syllablesPerLine: syllables,
+            lineCount,
+            hookLine: hookLine.trim() || undefined,
+            explicit,
+            context: context || undefined,
+            draft: sec.text.trim() || undefined,
+          },
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       const cleaned = (data.text as string)
         .replace(/^\[[^\]]+\]\s*/m, "")
+        .replace(/^["']|["']$/g, "")
         .trim();
       update(sec.id, { text: cleaned });
     } catch (e) {
@@ -205,6 +220,49 @@ export default function LyricEngine({
             className="input"
             placeholder="e.g. insomnia + dead radio frequencies, chorus repeats 'awake'"
           />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="space-y-1">
+              <div className="label">Point of view</div>
+              <select
+                className="select w-full"
+                value={pov}
+                onChange={(e) => setPov(e.target.value as typeof pov)}
+              >
+                <option value="first">1st person (I / me)</option>
+                <option value="second">2nd person (you / your)</option>
+                <option value="third">3rd person (he / she / they)</option>
+              </select>
+            </label>
+            <label className="space-y-1">
+              <div className="label">Syllables per line: <span className="text-[color:var(--color-accent)]">{syllables}</span></div>
+              <input
+                type="range"
+                min={5}
+                max={12}
+                value={syllables}
+                onChange={(e) => setSyllables(Number(e.target.value))}
+                className="w-full accent-[color:var(--color-accent)]"
+              />
+            </label>
+          </div>
+          <label className="space-y-1 block">
+            <div className="label">Hook line (chorus anchor) — optional</div>
+            <input
+              value={hookLine}
+              onChange={(e) => setHookLine(e.target.value)}
+              placeholder="e.g. 'Stay awake with me'"
+              className="input"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={explicit}
+              onChange={(e) => setExplicit(e.target.checked)}
+              className="accent-[color:var(--color-accent)]"
+            />
+            Allow explicit language
+          </label>
           <select
             className="select"
             value={model}
@@ -270,7 +328,9 @@ export default function LyricEngine({
           </div>
         </div>
 
-        {sections.map((sec) => (
+        {sections.map((sec) => {
+          const sectionLint = lintLyrics(sec.text);
+          return (
           <div
             key={sec.id}
             draggable
@@ -331,8 +391,22 @@ export default function LyricEngine({
             >
               {busyId === sec.id ? "Generating…" : "✨ Generate this section"}
             </button>
+            {sectionLint.length > 0 && (
+              <ul className="mt-1 space-y-1">
+                {sectionLint.map((w, i) => (
+                  <li
+                    key={i}
+                    className="text-[11px] rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-200 px-2 py-1"
+                  >
+                    <span className="font-semibold">Lint:</span> {w.why}
+                    {w.text && <span className="opacity-70"> — “{w.text}”</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        ))}
+          );
+        })}
 
         <div className="flex gap-2">
           <button
@@ -354,6 +428,25 @@ export default function LyricEngine({
       </div>
 
       <aside>
+        <div
+          className={`mb-3 rounded-lg border px-3 py-2 text-xs ${
+            fullLint.length === 0
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+          }`}
+        >
+          <div className="font-semibold">
+            Anti-AI lint:{" "}
+            {fullLint.length === 0
+              ? "Clean ✨"
+              : `${fullLint.length} flag${fullLint.length === 1 ? "" : "s"}`}
+          </div>
+          <div className="opacity-80 mt-0.5">
+            {fullLint.length === 0
+              ? "No common AI tells detected. Sing it back to yourself to double-check the rhythm."
+              : "Edit the highlighted lines or regenerate the section."}
+          </div>
+        </div>
         <div className="label mb-2">Version history</div>
         <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
           {versions.length === 0 && (

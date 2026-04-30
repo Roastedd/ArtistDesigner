@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { personaId, mode, brief, model, saveTo, target } = await req.json();
+  const { personaId, mode, brief, model, saveTo, target, controls } = await req.json();
   if (!personaId || !["suno", "lyrics", "core"].includes(mode)) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       ? buildCorePromptTemplate(p)
       : mode === "suno"
         ? promptTemplateFor(promptTarget, core, brief)
-        : lyricsPromptTemplate(core, brief);
+        : lyricsPromptTemplate(core, brief, controls ?? {});
 
   let text: string;
   try {
