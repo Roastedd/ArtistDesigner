@@ -83,6 +83,11 @@ export function CommandPalette({ personas }: { personas: Persona[] }) {
           <Command.Group heading="Quick actions">
             <PaletteItem
               icon={Sparkles}
+              label="Make my first song (walkthrough)"
+              onSelect={() => go("/guides/first-song")}
+            />
+            <PaletteItem
+              icon={Sparkles}
               label="Generate Artist"
               onSelect={() => go("/personas/new")}
             />

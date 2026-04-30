@@ -32,6 +32,10 @@ export const users = pgTable("user", {
   // Studio profile + economy
   producerName: text("producer_name"),
   credits: integer("credits").default(5).notNull(),
+  // First-song onboarding (resumable)
+  onboardingStep: integer("onboarding_step").default(0).notNull(),
+  onboardingPlatform: text("onboarding_platform"), // 'suno' | 'udio' | null
+  onboardingDismissed: boolean("onboarding_dismissed").default(false).notNull(),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });
 

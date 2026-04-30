@@ -10,6 +10,13 @@ import {
 
 const SECTIONS = [
   {
+    href: "/guides/first-song",
+    title: "Make your first song",
+    desc: "Step-by-step walkthrough for Suno or Udio. Your progress saves automatically.",
+    icon: Wand2,
+    accent: true,
+  },
+  {
     href: "/guides/how-ai-works",
     title: "How Our AI Works",
     desc: "The technology behind ArtistDesigner's radio-ready, natural-sounding lyrics.",

@@ -13,6 +13,7 @@ import {
   Check,
   Circle,
   ArrowRight,
+  Wand2,
 } from "lucide-react";
 import { db } from "@/db";
 import { personas, albums, tracks, users } from "@/db/schema";
@@ -85,6 +86,10 @@ export default async function Dashboard() {
       </div>
 
       {/* Getting Started */}
+      <FirstSongBanner
+        step={user?.onboardingStep ?? 0}
+        dismissed={user?.onboardingDismissed ?? false}
+      />
       <GettingStarted
         hasArtist={hasArtist}
         hasAlbum={hasAlbum}
@@ -279,6 +284,72 @@ function GettingStarted({
         ))}
       </ul>
     </section>
+  );
+}
+
+const FIRST_SONG_TOTAL = 6;
+
+function FirstSongBanner({
+  step,
+  dismissed,
+}: {
+  step: number;
+  dismissed: boolean;
+}) {
+  if (dismissed) return null;
+  const completed = step >= FIRST_SONG_TOTAL;
+  if (completed) return null;
+  const started = step > 0;
+  const pct = Math.min(100, Math.round((step / FIRST_SONG_TOTAL) * 100));
+  return (
+    <Link
+      href="/guides/first-song"
+      className="block rounded-2xl border border-[color:var(--color-accent)]/40 p-5 hover:border-[color:var(--color-accent)] transition-colors group"
+      style={{
+        background:
+          "linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 20%, transparent) 0%, color-mix(in srgb, var(--color-accent) 6%, var(--color-bg-elev)) 60%, var(--color-bg-elev) 100%)",
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="h-11 w-11 rounded-xl shrink-0 flex items-center justify-center bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]"
+          style={{
+            boxShadow:
+              "0 0 18px color-mix(in srgb, var(--color-accent) 35%, transparent)",
+          }}
+        >
+          <Wand2 className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="font-semibold">
+              {started ? "Pick up where you left off" : "New here? Make your first song"}
+            </div>
+            <span className="text-xs text-[color:var(--color-muted)]">
+              {started
+                ? `Step ${Math.min(step + 1, FIRST_SONG_TOTAL)} of ${FIRST_SONG_TOTAL}`
+                : `${FIRST_SONG_TOTAL} short steps`}
+            </span>
+          </div>
+          <div className="text-sm text-[color:var(--color-muted)] mt-1">
+            A guided walkthrough for Suno or Udio. Lyrics, style prompts, and
+            saving the finished track — your progress saves automatically.
+          </div>
+          {started && (
+            <div className="mt-3 h-1.5 rounded-full bg-[color:var(--color-border)] overflow-hidden">
+              <div
+                className="h-full bg-[color:var(--color-accent)]"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          )}
+          <div className="mt-3 inline-flex items-center gap-1 text-sm text-[color:var(--color-accent)] group-hover:opacity-80">
+            {started ? "Continue" : "Start"}{" "}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }
 

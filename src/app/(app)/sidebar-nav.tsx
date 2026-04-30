@@ -15,6 +15,7 @@ import {
   BookOpen,
   Lightbulb,
   Search,
+  Wand2,
 } from "lucide-react";
 
 type Item = {
@@ -47,6 +48,7 @@ const DISCOVER: Item[] = [
 ];
 
 const LEARN: Item[] = [
+  { href: "/guides/first-song", label: "Make your first song", icon: Wand2 },
   { href: "/guides", label: "Guides", icon: BookOpen },
   { href: "/guides/how-ai-works", label: "How AI Works", icon: Lightbulb },
 ];
