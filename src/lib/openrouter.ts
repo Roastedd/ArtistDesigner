@@ -1,7 +1,7 @@
 /**
  * Thin OpenRouter client. Use any model slug from
  * https://openrouter.ai/models — including free tiers
- * (e.g. "openai/gpt-oss-20b:free", "openai/gpt-oss-120b:free").
+ * (e.g. "openai/gpt-oss-20b:free", "minimax/minimax-m2.5:free").
  */
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -55,9 +55,13 @@ export async function generate({
 
 /** Curated default models — tweak to taste. */
 export const MODEL_PRESETS = {
+  /** Fast + free: OpenAI GPT-OSS 20B (free tier, reliable) */
   fastFree: "openai/gpt-oss-20b:free",
+  /** Quality + free: OpenAI GPT-OSS 120B (free tier, best reliable free option) */
   qualityFree: "openai/gpt-oss-120b:free",
+  /** Paid balanced: Claude 3.5 Sonnet */
   paidBalanced: "anthropic/claude-3.5-sonnet",
-  paidTop: "anthropic/claude-sonnet-4.5",
+  /** Paid top: Claude Sonnet 4.6 (latest) */
+  paidTop: "anthropic/claude-sonnet-4.6",
   auto: "openrouter/auto",
 } as const;
