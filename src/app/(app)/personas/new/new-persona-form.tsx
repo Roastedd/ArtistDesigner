@@ -246,10 +246,67 @@ function ReviewPanel({
         placeholder="e.g. Kate Bush, Grouper"
       />
       <Field
-        label="Lyric motifs (comma-separated)"
+        label="Lyric motifs / vocabulary themes (comma-separated)"
         name="motifs"
         value={result.motifs}
         placeholder="e.g. memory, distance, static"
+      />
+      <Field
+        label="Personality (comma-separated)"
+        name="personality"
+        value={result.personality}
+        placeholder="e.g. Mischievous, Hyperactive, Electric"
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Field
+          label="BPM min"
+          name="bpmMin"
+          value={String(result.bpmMin)}
+          placeholder="90"
+        />
+        <Field
+          label="BPM max"
+          name="bpmMax"
+          value={String(result.bpmMax)}
+          placeholder="120"
+        />
+      </div>
+      <Field
+        label="Key tendencies"
+        name="keyTendencies"
+        value={result.keyTendencies}
+        placeholder="C minor, F# minor"
+      />
+      <Field
+        label="Lyrical tone"
+        name="lyricalTone"
+        value={result.lyricalTone}
+        placeholder="saccharine but subtly nihilistic"
+      />
+      <Field
+        label="Visual aesthetic"
+        name="visualAesthetic"
+        value={result.visualAesthetic}
+        placeholder="hand-drawn 2D anime, neon palette"
+        multiline
+      />
+      <Field
+        label="Themes"
+        name="themes"
+        value={result.themes}
+        placeholder="digital escapism, candy-coated chaos"
+      />
+      <Field
+        label="Target audience"
+        name="targetAudience"
+        value={result.targetAudience}
+        placeholder="Gen Z digital natives"
+      />
+      <Field
+        label="Color palette (hex, comma-separated)"
+        name="colorPalette"
+        value={result.colorPalette}
+        placeholder="#ff66cc, #00e6ff, #1a0033"
       />
 
       <div className="flex items-center gap-3 pt-1">

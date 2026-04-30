@@ -32,8 +32,29 @@ export function buildPersonaCore(p: Persona): string {
   return lines.join("\n");
 }
 
-export function sunoPromptTemplate(core: string, brief: string) {
-  return [
+/**
+ * Deterministic, ready-to-paste Suno/Udio prompt built from the persona DNA.
+ * No LLM call \u2014 used for the always-visible "AI Music Generator Prompt"
+ * card on the artist profile.
+ */
+export function staticSunoPrompt(p: Persona): string {
+  const parts: string[] = [];
+  if (p.genres?.length) parts.push(p.genres.slice(0, 3).join(", "));
+  if (p.lyricalTone) parts.push(p.lyricalTone);
+  if (p.vocalStyle) parts.push(p.vocalStyle);
+  if (p.instrumentation?.length)
+    parts.push(p.instrumentation.slice(0, 5).join(", "));
+  if (p.bpmMin && p.bpmMax)
+    parts.push(`tempo ${Math.round((p.bpmMin + p.bpmMax) / 2)}bpm`);
+  else if (p.bpmMin) parts.push(`tempo ${p.bpmMin}bpm`);
+  if (p.keyTendencies) parts.push(p.keyTendencies);
+  if (p.mixAesthetic) parts.push(p.mixAesthetic);
+  if (p.motifs?.length)
+    parts.push(`themes: ${p.motifs.slice(0, 4).join(", ")}`);
+  return parts.filter(Boolean).join(", ") + ".";
+}
+
+export function sunoPromptTemplate(core: string, brief: string) {  return [
     "You are a senior music director writing a Suno style prompt.",
     "",
     "OUTPUT FORMAT (no preamble, no markdown, no quotes):",

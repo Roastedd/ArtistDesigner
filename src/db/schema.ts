@@ -109,6 +109,14 @@ export const personas = pgTable("persona", {
   motifs: jsonb("motifs").$type<string[]>().default([]),
   forbiddenWords: jsonb("forbidden_words").$type<string[]>().default([]),
   influences: jsonb("influences").$type<string[]>().default([]),
+  // StudioWorks-style DNA profile (all optional, auto-filled by brainstorm)
+  personality: jsonb("personality").$type<string[]>().default([]),
+  keyTendencies: text("key_tendencies"),
+  lyricalTone: text("lyrical_tone"),
+  visualAesthetic: text("visual_aesthetic"),
+  themes: text("themes"),
+  targetAudience: text("target_audience"),
+  socialLinks: jsonb("social_links").$type<{ label: string; url: string }[]>().default([]),
   // Single locked "Persona Core" prompt block (auto-generated/edited)
   personaCore: text("persona_core"),
   isPublic: boolean("is_public").default(false).notNull(),

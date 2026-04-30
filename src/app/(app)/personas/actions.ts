@@ -34,6 +34,9 @@ export async function createPersona(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Name required");
 
+  const bpmMinRaw = formData.get("bpmMin");
+  const bpmMaxRaw = formData.get("bpmMax");
+
   const [p] = await db
     .insert(personas)
     .values({
@@ -43,7 +46,20 @@ export async function createPersona(formData: FormData) {
       tagline: String(formData.get("tagline") ?? "") || null,
       bio: String(formData.get("bio") ?? "") || null,
       genres: csv(formData.get("genres")),
+      bpmMin: bpmMinRaw ? Number(bpmMinRaw) : null,
+      bpmMax: bpmMaxRaw ? Number(bpmMaxRaw) : null,
       vocalStyle: String(formData.get("vocalStyle") ?? "") || null,
+      instrumentation: csv(formData.get("instrumentation")),
+      mixAesthetic: String(formData.get("mixAesthetic") ?? "") || null,
+      colorPalette: csv(formData.get("colorPalette")),
+      influences: csv(formData.get("influences")),
+      motifs: csv(formData.get("motifs")),
+      personality: csv(formData.get("personality")),
+      keyTendencies: String(formData.get("keyTendencies") ?? "") || null,
+      lyricalTone: String(formData.get("lyricalTone") ?? "") || null,
+      visualAesthetic: String(formData.get("visualAesthetic") ?? "") || null,
+      themes: String(formData.get("themes") ?? "") || null,
+      targetAudience: String(formData.get("targetAudience") ?? "") || null,
     })
     .returning({ id: personas.id });
 
@@ -73,6 +89,12 @@ export async function updatePersona(personaId: string, formData: FormData) {
       motifs: csv(formData.get("motifs")),
       forbiddenWords: csv(formData.get("forbiddenWords")),
       influences: csv(formData.get("influences")),
+      personality: csv(formData.get("personality")),
+      keyTendencies: String(formData.get("keyTendencies") ?? "") || null,
+      lyricalTone: String(formData.get("lyricalTone") ?? "") || null,
+      visualAesthetic: String(formData.get("visualAesthetic") ?? "") || null,
+      themes: String(formData.get("themes") ?? "") || null,
+      targetAudience: String(formData.get("targetAudience") ?? "") || null,
       personaCore: String(formData.get("personaCore") ?? "") || null,
       isPublic: formData.get("isPublic") === "on",
       updatedAt: new Date(),
