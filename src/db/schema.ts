@@ -194,6 +194,14 @@ export const releases = pgTable("release", {
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const feedback = pgTable("feedback", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  emoji: text("emoji"),
+  message: text("message"),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /* ────────────────────────────────────────────── */
 export const personasRelations = relations(personas, ({ many }) => ({
   eras: many(eras),

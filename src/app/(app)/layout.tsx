@@ -5,6 +5,7 @@ import { auth, signOut } from "@/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import SidebarNav from "./sidebar-nav";
+import { FeedbackWidget } from "@/components/feedback-widget";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -49,6 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </form>
       </aside>
       <main className="p-8 max-w-6xl">{children}</main>
+      <FeedbackWidget />
     </div>
   );
 }

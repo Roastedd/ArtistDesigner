@@ -1,5 +1,7 @@
 import { NewPersonaForm } from "./new-persona-form";
 
+export const maxDuration = 60;
+
 export default function NewPersonaPage() {
   return (
     <div>
