@@ -264,6 +264,82 @@ export async function importPersona(formData: FormData) {
   redirect(`/personas/${created.id}`);
 }
 
+export interface LyricDnaSuggestions {
+  genres?: string[];
+  bpmMin?: number;
+  bpmMax?: number;
+  vocalStyle?: string;
+  instrumentation?: string[];
+  mixAesthetic?: string;
+  slang?: string[];
+  motifs?: string[];
+  influences?: string[];
+  tagline?: string;
+  bio?: string;
+}
+
+/**
+ * Analyze pasted song lyrics and suggest persona DNA updates.
+ * Returns structured suggestions the client can review before applying.
+ */
+export async function analyzeLyricsForPersona(
+  personaId: string,
+  lyrics: string,
+): Promise<{ suggestions: LyricDnaSuggestions; error?: never } | { error: string; suggestions?: never }> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+  if (!lyrics.trim()) return { error: "No lyrics provided" };
+
+  const rl = checkRateLimit(`ai:${session.user.id}`, 20, 60_000);
+  if (!rl.ok) return { error: "Rate limit reached. Try again in a minute." };
+
+  const [p] = await db
+    .select({ name: personas.name, genres: personas.genres, vocalStyle: personas.vocalStyle })
+    .from(personas)
+    .where(and(eq(personas.id, personaId), eq(personas.userId, session.user.id)));
+  if (!p) return { error: "Persona not found" };
+
+  const systemPrompt = `You are a music producer and A&R analyst. Analyze song lyrics and extract artist DNA.
+Return ONLY valid JSON with this exact shape (omit any field you cannot confidently infer):
+{
+  "genres": ["string"],
+  "bpmMin": number,
+  "bpmMax": number,
+  "vocalStyle": "string",
+  "instrumentation": ["string"],
+  "mixAesthetic": "string",
+  "slang": ["unique words or phrases from the lyrics that define this artist's vocabulary"],
+  "motifs": ["recurring themes or imagery"],
+  "influences": ["artists this writing style resembles"],
+  "tagline": "one-line artist description",
+  "bio": "two-sentence artist bio inferred from the lyric content and emotional tone"
+}
+Output nothing but the JSON object.`;
+
+  const userPrompt = `Artist: ${p.name}
+${p.genres?.length ? `Known genres: ${p.genres.join(", ")}` : ""}
+
+Lyrics to analyze:
+${lyrics.slice(0, 4000)}`;
+
+  try {
+    const raw = await generate({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_tokens: 500,
+    });
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { error: "AI returned unexpected format" };
+    const suggestions = JSON.parse(jsonMatch[0]) as LyricDnaSuggestions;
+    return { suggestions };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "AI analysis failed" };
+  }
+}
+
 export async function regeneratePersonaCore(personaId: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");

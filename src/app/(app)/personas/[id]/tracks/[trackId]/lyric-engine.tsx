@@ -75,6 +75,8 @@ export default function LyricEngine({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState("");
 
   function update(id: string, patch: Partial<Section>) {
     setSections((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -111,6 +113,14 @@ export default function LyricEngine({
       return next;
     });
     setDragId(null);
+  }
+
+  function importRawLyrics() {
+    const parsed = bodyToSections(importText);
+    setSections(parsed);
+    setImportText("");
+    setShowImport(false);
+    toast.success("Lyrics imported — edit away!");
   }
 
   async function generateSection(sec: Section) {
@@ -214,6 +224,50 @@ export default function LyricEngine({
               <option value={MODEL_PRESETS.auto}>OpenRouter auto</option>
             </optgroup>
           </select>
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowImport((v) => !v)}
+              className="btn-ghost btn text-xs"
+            >
+              {showImport ? "▲ Hide import" : "↓ Paste existing lyrics"}
+            </button>
+            {showImport && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-[color:var(--color-muted)]">
+                  Paste your song&apos;s lyrics below. Use{" "}
+                  <code className="text-[color:var(--color-accent)]">[Verse 1]</code>{" "}
+                  /
+                  <code className="text-[color:var(--color-accent)]">[Chorus]</code>{" "}
+                  headers to auto-split into sections, or just paste the raw text and split manually.
+                </p>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  rows={10}
+                  className="input font-mono text-sm"
+                  placeholder={`[Verse 1]\nLyric line one\nLyric line two\n\n[Chorus]\nChorus lines here…`}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={importRawLyrics}
+                    disabled={!importText.trim()}
+                    className="btn"
+                  >
+                    Import into editor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setImportText(""); setShowImport(false); }}
+                    className="btn-ghost btn"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {sections.map((sec) => (

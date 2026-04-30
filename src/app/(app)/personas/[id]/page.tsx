@@ -6,6 +6,7 @@ import { personas } from "@/db/schema";
 import { updatePersona, deletePersona, clonePersona } from "../actions";
 import { PersonaTabs } from "./persona-tabs";
 import PromptForge from "./prompt-forge";
+import LyricSeeder from "./lyric-seeder";
 import { DeleteButton } from "@/components/delete-button";
 import { RegenerateCoreButton } from "./regenerate-core-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -68,7 +69,7 @@ export default async function PersonaPage({
       <p className="text-[color:var(--color-muted)] mb-8">{p.tagline}</p>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <form action={updatePersona.bind(null, p.id)} className="card space-y-3">
+        <form action={updatePersona.bind(null, p.id)} data-persona-form className="card space-y-3">
           <h2 className="font-medium mb-2">Identity</h2>
           <Field label="Name" name="name" defaultValue={p.name} />
           <Field label="Tagline" name="tagline" defaultValue={p.tagline ?? ""} />
@@ -128,6 +129,7 @@ export default async function PersonaPage({
         </form>
 
         <div className="space-y-6">
+          <LyricSeeder personaId={p.id} />
           <PromptForge personaId={p.id} />
         </div>
       </div>
