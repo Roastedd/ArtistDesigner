@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -19,6 +19,8 @@ import {
   X,
 } from "lucide-react";
 import FileUpload from "@/components/file-upload";
+import { templatesByCategory, type PromptTemplateMode } from "@/lib/prompt-templates";
+import { lintLyrics } from "@/lib/persona-prompt";
 import {
   dismissOnboarding,
   resetOnboarding,
@@ -159,21 +161,26 @@ export function Walkthrough({
       <ol className="grid grid-cols-9 gap-1.5">
         {STEP_TITLES.map((t, i) => {
           const reached = i <= Math.max(initialStep, step);
+          const done = i < initialStep;
           const current = i === step;
           return (
             <li key={t}>
               <button
                 onClick={() => go(i)}
-                title={`${i + 1}. ${t}`}
-                className={`w-full h-1.5 rounded-full transition-colors ${
+                title={`${i + 1}. ${t}${done ? " (done)" : ""}`}
+                className={`w-full h-7 rounded-md text-[11px] font-medium inline-flex items-center justify-center gap-1 transition-colors ${
                   current
-                    ? "bg-[color:var(--color-accent)]"
-                    : reached
-                      ? "bg-[color:var(--color-accent)]/40"
-                      : "bg-[color:var(--color-border)]"
+                    ? "bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]"
+                    : done
+                      ? "bg-[color:var(--color-accent)]/20 text-[color:var(--color-accent)] hover:bg-[color:var(--color-accent)]/30"
+                      : reached
+                        ? "bg-[color:var(--color-bg-elev)] text-[color:var(--color-fg)] hover:bg-[color:var(--color-border)]"
+                        : "bg-[color:var(--color-bg-elev)] text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]"
                 }`}
                 aria-label={`Step ${i + 1}: ${t}`}
-              />
+              >
+                {done ? <Check className="h-3 w-3" /> : i + 1}
+              </button>
             </li>
           );
         })}
@@ -184,7 +191,12 @@ export function Walkthrough({
       {/* Step body */}
       <section className="card space-y-5">
         <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
-          Step {step + 1} of {TOTAL_STEPS}
+          <span>Step {step + 1} of {TOTAL_STEPS}</span>
+          {step < initialStep && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[color:var(--color-accent)]/15 text-[color:var(--color-accent)] normal-case tracking-normal">
+              <Check className="h-3 w-3" /> Done
+            </span>
+          )}
         </div>
         <h2 className="text-xl font-semibold">{STEP_TITLES[step]}</h2>        {step === 0 && (
           <PlatformPicker selected={platform} onSelect={pickPlatform} />
@@ -260,6 +272,236 @@ export function Walkthrough({
 }
 
 /* ───────────────── steps ───────────────── */
+
+/**
+ * Inline generator embedded in the walkthrough so users can produce
+ * lyrics / Suno prompts without navigating to the persona detail page.
+ * Falls back to a "pick an artist first" message if no persona is selected.
+ */
+function InlineForge({
+  persona,
+  mode,
+  placeholder,
+}: {
+  persona: { id: string; name: string } | null;
+  mode: "suno" | "lyrics";
+  placeholder: string;
+}) {
+  const [brief, setBrief] = useState("");
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const templates = useMemo(
+    () => templatesByCategory(mode as PromptTemplateMode),
+    [mode],
+  );
+  const lints = useMemo(
+    () => (mode === "lyrics" && output ? lintLyrics(output) : []),
+    [mode, output],
+  );
+
+  async function generate() {
+    if (!persona) return;
+    setLoading(true);
+    setOutput("");
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personaId: persona.id,
+          mode,
+          brief,
+          // omit model → server uses fallback chain (free first)
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.text();
+        throw new Error(errBody || `Failed (${res.status})`);
+      }
+      const data = await res.json();
+      setOutput(data.text);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(output);
+      setCopied(true);
+      toast.success("Copied — paste into your platform");
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Couldn't copy. Select the text manually.");
+    }
+  }
+
+  if (!persona) {
+    return (
+      <div className="rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-xs text-[color:var(--color-muted)]">
+        Pick an artist in step 2 to enable the in-line generator here.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent)]/5 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)] inline-flex items-center gap-1.5">
+          <Wand2 className="h-3.5 w-3.5 text-[color:var(--color-accent)]" />
+          Generate {mode === "lyrics" ? "lyrics" : "Suno/Udio prompt"} for{" "}
+          <strong className="text-[color:var(--color-fg)]">{persona.name}</strong>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowTemplates((v) => !v)}
+          className="text-xs text-[color:var(--color-accent)] hover:underline"
+        >
+          {showTemplates ? "Hide templates" : "Browse templates →"}
+        </button>
+      </div>
+
+      {showTemplates && (
+        <div className="space-y-2 max-h-56 overflow-auto rounded border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-2">
+          {templates.map(([category, items]) => (
+            <div key={category} className="space-y-1">
+              <div className="text-[10px] uppercase tracking-wide text-[color:var(--color-muted)]">
+                {category}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {items.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setBrief(t.brief);
+                      setShowTemplates(false);
+                      toast.success(`Loaded: ${t.label}`);
+                    }}
+                    className="text-left text-xs border border-[color:var(--color-border)] hover:border-[color:var(--color-accent)] rounded p-2 transition-colors"
+                  >
+                    <div className="font-medium">{t.label}</div>
+                    <div className="text-[color:var(--color-muted)] mt-0.5 line-clamp-2">
+                      {t.description}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <textarea
+        value={brief}
+        onChange={(e) => setBrief(e.target.value)}
+        rows={3}
+        className="w-full px-3 py-2 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] text-sm font-mono"
+        placeholder={placeholder}
+      />
+
+      <button
+        onClick={generate}
+        disabled={loading || !brief.trim()}
+        className="btn-primary inline-flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> Generating…
+          </>
+        ) : (
+          <>
+            <Sparkles className="h-4 w-4" /> Generate
+          </>
+        )}
+      </button>
+
+      {output && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] uppercase tracking-wide text-[color:var(--color-muted)]">
+              Output
+            </div>
+            <button
+              onClick={copy}
+              className="text-xs inline-flex items-center gap-1 text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3 w-3" /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" /> Copy
+                </>
+              )}
+            </button>
+          </div>
+          {mode === "lyrics" ? (
+            <LyricBlock body={output} />
+          ) : (
+            <pre className="whitespace-pre-wrap font-mono text-xs bg-[color:var(--color-bg)] border border-[color:var(--color-border)] rounded p-3 max-h-72 overflow-auto">
+              {output}
+            </pre>
+          )}
+          {mode === "lyrics" && lints.length > 0 && (
+            <div className="border border-amber-500/40 bg-amber-500/5 rounded p-2 space-y-1">
+              <div className="text-xs font-medium text-amber-300">
+                {lints.length} possible AI tell{lints.length === 1 ? "" : "s"} —
+                consider rewriting
+              </div>
+              <ul className="text-[11px] text-[color:var(--color-muted)] space-y-0.5">
+                {lints.slice(0, 5).map((l, i) => (
+                  <li key={i}>
+                    {l.line > 0 ? (
+                      <>
+                        <span className="text-amber-300">L{l.line}:</span>{" "}
+                        <span className="font-mono">{l.text.slice(0, 60)}</span>{" "}
+                        — {l.why}
+                      </>
+                    ) : (
+                      l.why
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LyricBlock({ body }: { body: string }) {
+  const lines = body.split(/\n/);
+  return (
+    <pre className="whitespace-pre-wrap font-mono text-xs bg-[color:var(--color-bg)] border border-[color:var(--color-border)] rounded p-3 max-h-80 overflow-auto leading-relaxed">
+      {lines.map((line, i) => {
+        const isTag = /^\[[^\]]+\]\s*$/.test(line.trim());
+        return isTag ? (
+          <span
+            key={i}
+            className="text-[color:var(--color-accent)] font-semibold"
+          >
+            {line}
+            {"\n"}
+          </span>
+        ) : (
+          <span key={i}>
+            {line}
+            {"\n"}
+          </span>
+        );
+      })}
+    </pre>
+  );
+}
 
 function Glossary() {
   const [open, setOpen] = useState(false);
@@ -558,9 +800,15 @@ We've been singing all along...`;
         <code>[Chorus]</code> and shapes the song around them.
       </p>
 
+      <InlineForge
+        persona={selectedPersona}
+        mode="lyrics"
+        placeholder="Brief: a song about driving home in the rain after a fight, chorus repeats 'we drive on'"
+      />
+
       <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
         <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
-          Do this in ArtistDesigner
+          Or do it on the persona page
         </div>
         <ol className="text-sm space-y-2 list-decimal pl-5">
           <li>
@@ -652,9 +900,15 @@ function StyleStep({
         short comma-separated tags.
       </p>
 
+      <InlineForge
+        persona={selectedPersona}
+        mode="suno"
+        placeholder="Brief: a dark, slow-burn opener that drops at 1:20, festival-ready chorus"
+      />
+
       <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
         <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
-          Do this in ArtistDesigner
+          Or copy the persona&apos;s default prompt
         </div>
         <ol className="text-sm space-y-2 list-decimal pl-5">
           <li>
