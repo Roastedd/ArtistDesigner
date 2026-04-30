@@ -1,11 +1,22 @@
-import { signIn, auth, isRealEmail } from "@/auth";
+import { signIn, auth, hasMagicLink } from "@/auth";
+import { AuthError } from "next-auth";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { hashPassword } from "@/lib/password";
+import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 const hasGitHub = !!(
   process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET
 );
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const sp = await searchParams;
+  const error = sp.error;
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
@@ -15,6 +26,12 @@ export default async function SignInPage() {
       <p className="text-sm text-[color:var(--color-muted)] mb-6">
         Access your AI artist workspace.
       </p>
+
+      {error && (
+        <div className="mb-4 rounded border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
 
       <div className="space-y-3">
         {hasGitHub && (
@@ -38,6 +55,123 @@ export default async function SignInPage() {
         <form
           action={async (formData) => {
             "use server";
+            try {
+              await signIn("credentials", {
+                email: formData.get("email"),
+                password: formData.get("password"),
+                redirectTo: "/dashboard",
+              });
+            } catch (error) {
+              if (error instanceof AuthError) {
+                redirect("/sign-in?error=Invalid%20email%20or%20password");
+              }
+              throw error;
+            }
+          }}
+          className="space-y-3"
+        >
+          <input
+            name="email"
+            type="email"
+            required
+            placeholder="you@example.com"
+            className="input"
+          />
+          <input
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            placeholder="Password (min 8 chars)"
+            className="input"
+          />
+          <button type="submit" className="btn w-full justify-center">
+            Sign in with password
+          </button>
+        </form>
+
+        <form
+          action={async (formData) => {
+            "use server";
+            const email = String(formData.get("newEmail") ?? "")
+              .trim()
+              .toLowerCase();
+            const name = String(formData.get("newName") ?? "").trim() || null;
+            const password = String(formData.get("newPassword") ?? "");
+
+            if (!email || password.length < 8) {
+              redirect("/sign-in?error=Use%20a%20valid%20email%20and%20a%20password%20with%20at%20least%208%20characters");
+            }
+
+            const [existing] = await db
+              .select({ id: users.id, passwordHash: users.passwordHash })
+              .from(users)
+              .where(eq(users.email, email))
+              .limit(1);
+
+            if (!existing) {
+              await db.insert(users).values({
+                email,
+                name,
+                passwordHash: hashPassword(password),
+              });
+            } else if (!existing.passwordHash) {
+              await db
+                .update(users)
+                .set({ passwordHash: hashPassword(password), ...(name ? { name } : {}) })
+                .where(eq(users.id, existing.id));
+            } else {
+              redirect("/sign-in?error=An%20account%20with%20this%20email%20already%20exists");
+            }
+
+            try {
+              await signIn("credentials", {
+                email,
+                password,
+                redirectTo: "/dashboard",
+              });
+            } catch (error) {
+              if (error instanceof AuthError) {
+                redirect("/sign-in?error=Account%20created%20but%20sign-in%20failed.%20Try%20again");
+              }
+              throw error;
+            }
+          }}
+          className="space-y-3 border border-[color:var(--color-border)] rounded p-4"
+        >
+          <div className="text-sm font-medium">Create account</div>
+          <input
+            name="newName"
+            type="text"
+            placeholder="Name (optional)"
+            className="input"
+          />
+          <input
+            name="newEmail"
+            type="email"
+            required
+            placeholder="you@example.com"
+            className="input"
+          />
+          <input
+            name="newPassword"
+            type="password"
+            required
+            minLength={8}
+            placeholder="Create password (min 8 chars)"
+            className="input"
+          />
+          <button type="submit" className="btn-ghost btn w-full justify-center">
+            Create account
+          </button>
+        </form>
+
+        {hasMagicLink && <div className="flex items-center gap-3 text-xs text-[color:var(--color-muted)]"><div className="flex-1 border-t border-[color:var(--color-border)]" /><span>or</span><div className="flex-1 border-t border-[color:var(--color-border)]" /></div>}
+
+        {hasMagicLink && (
+        <form
+          action={async (formData) => {
+            "use server";
             await signIn("nodemailer", {
               email: formData.get("email"),
               redirectTo: "/dashboard",
@@ -56,29 +190,14 @@ export default async function SignInPage() {
             Send magic link
           </button>
         </form>
+        )}
       </div>
 
-      {!isRealEmail && process.env.NODE_ENV === "production" ? (
-        <p className="text-xs text-amber-400 mt-6 border border-amber-400/30 rounded p-3">
-          <strong>Email not configured.</strong> Add a{" "}
-          <code>RESEND_API_KEY</code> environment variable in your Vercel
-          project settings to enable magic-link sign-in.{" "}
-          <a
-            href="https://resend.com"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            Get a free Resend key →
-          </a>
-        </p>
-      ) : !isRealEmail ? (
+      {!hasMagicLink && (
         <p className="text-xs text-[color:var(--color-muted)] mt-6">
-          <strong>Dev mode:</strong> the magic link will be printed in your
-          terminal where <code>pnpm dev</code> is running. Copy-paste it into
-          your browser to sign in.
+          Password accounts are enabled. Magic links are currently disabled.
         </p>
-      ) : null}
+      )}
     </main>
   );
 }

@@ -24,6 +24,7 @@ export const users = pgTable("user", {
   email: text("email").unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  passwordHash: text("password_hash"),
   // Per-user UI preferences
   theme: text("theme").default("dark").notNull(), // 'dark' | 'light'
   accentColor: text("accent_color"), // hex e.g. #a78bfa, falls back to default
