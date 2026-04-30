@@ -1,164 +1,367 @@
 import Link from "next/link";
 import Image from "next/image";
+import { and, eq, isNull, sql, inArray, desc } from "drizzle-orm";
+import {
+  Sparkles,
+  UserPlus,
+  Disc3,
+  Plus,
+  Music2,
+  Mic2,
+  Globe2,
+  Rocket,
+  Check,
+  Circle,
+  ArrowRight,
+} from "lucide-react";
 import { db } from "@/db";
-import { personas, albums, tracks, releases } from "@/db/schema";
-import { and, eq, isNull, sql, inArray } from "drizzle-orm";
-import { requireUserId } from "@/lib/require-auth";
+import { personas, albums, tracks, users } from "@/db/schema";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { ProducerNameCard } from "./producer-name-card";
 
 export default async function Dashboard() {
-  const userId = await requireUserId();
+  const session = await auth();
+  if (!session?.user?.id) redirect("/sign-in");
+  const userId = session.user.id;
+
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+
   const list = await db
     .select()
     .from(personas)
     .where(and(eq(personas.userId, userId), isNull(personas.deletedAt)));
 
-  // Fetch latest cover + track count for each persona
   const personaIds = list.map((p) => p.id);
-  const covers: Record<string, string | null> = {};
-  const trackCounts: Record<string, number> = {};
-  let totalTracks = 0;
+
   let totalAlbums = 0;
-  let totalReleases = 0;
-  const statusBreakdown: Record<string, number> = {};
+  let totalTracks = 0;
+  let publicArtists = 0;
+  let recent: { id: string; name: string; cover: string | null }[] = [];
 
   if (personaIds.length > 0) {
-    // Latest album cover per persona
+    const [aAgg] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(albums)
+      .where(inArray(albums.personaId, personaIds));
+    totalAlbums = aAgg?.count ?? 0;
+
+    const [tAgg] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tracks)
+      .where(inArray(tracks.personaId, personaIds));
+    totalTracks = tAgg?.count ?? 0;
+
+    publicArtists = list.filter((p) => p.isPublic).length;
+
     const coverRows = await db
       .selectDistinctOn([albums.personaId], {
         personaId: albums.personaId,
         coverUrl: albums.coverUrl,
       })
       .from(albums)
-      .orderBy(albums.personaId, albums.createdAt);
-    for (const r of coverRows) covers[r.personaId] = r.coverUrl;
+      .orderBy(albums.personaId, desc(albums.createdAt));
+    const coverMap = new Map(coverRows.map((r) => [r.personaId, r.coverUrl]));
 
-    // Track count per persona
-    const countRows = await db
-      .select({ personaId: tracks.personaId, count: sql<number>`count(*)::int` })
-      .from(tracks)
-      .groupBy(tracks.personaId);
-    for (const r of countRows) {
-      trackCounts[r.personaId] = r.count;
-      totalTracks += r.count;
-    }
-
-    // Status breakdown across all owned tracks
-    const statusRows = await db
-      .select({ status: tracks.status, count: sql<number>`count(*)::int` })
-      .from(tracks)
-      .where(inArray(tracks.personaId, personaIds))
-      .groupBy(tracks.status);
-    for (const r of statusRows) statusBreakdown[r.status] = r.count;
-
-    const [albumAgg] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(albums)
-      .where(inArray(albums.personaId, personaIds));
-    totalAlbums = albumAgg?.count ?? 0;
-
-    const [releaseAgg] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(releases)
-      .where(inArray(releases.personaId, personaIds));
-    totalReleases = releaseAgg?.count ?? 0;
+    recent = list.slice(0, 6).map((p) => ({
+      id: p.id,
+      name: p.name,
+      cover: coverMap.get(p.id) ?? null,
+    }));
   }
 
+  const hasArtist = list.length > 0;
+  const hasAlbum = totalAlbums > 0;
+  const hasPublic = publicArtists > 0;
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <Link href="/personas/new" className="btn">+ New persona</Link>
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-[color:var(--color-muted)] mt-1">
+          Your AI record label at a glance.
+        </p>
       </div>
 
-      {list.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <Stat label="Personas" value={list.length} />
-          <Stat label="Albums" value={totalAlbums} />
-          <Stat label="Tracks" value={totalTracks} />
-          <Stat label="Releases" value={totalReleases} />
-          {Object.keys(statusBreakdown).length > 0 && (
-            <div className="card col-span-2 md:col-span-4">
-              <div className="label mb-2">Track status</div>
-              <div className="flex flex-wrap gap-3 text-sm">
-                {Object.entries(statusBreakdown).map(([s, c]) => (
-                  <span key={s} className="flex items-center gap-1">
-                    <span className="font-mono">{c}</span>
-                    <span className="text-[color:var(--color-muted)]">{s}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Getting Started */}
+      <GettingStarted
+        hasArtist={hasArtist}
+        hasAlbum={hasAlbum}
+        hasPublic={hasPublic}
+      />
 
-      <div className="grid md:grid-cols-3 gap-4">
-        {list.length === 0 && (
-          <div className="card col-span-full">
-            <div className="font-medium mb-1">No personas yet</div>
-            <div className="text-sm text-[color:var(--color-muted)] mb-4">
-              Start by creating your first AI artist.
-            </div>
-            <Link href="/personas/new" className="btn">Create persona</Link>
-          </div>
-        )}
-        {list.map((p) => {
-          const cover = covers[p.id];
-          const count = trackCounts[p.id] ?? 0;
-          const genres = (p.genres ?? []).slice(0, 3);
-          return (
+      {/* Producer name */}
+      <ProducerNameCard
+        initialName={user?.producerName ?? null}
+        email={session.user.email ?? ""}
+        profileSlug={list[0]?.slug ?? null}
+      />
+
+      {/* Quick action grid */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ActionCard
+          href="/personas/new"
+          icon={Sparkles}
+          title="Generate Artist"
+          desc="AI-generate a complete Artist DNA"
+          badge="2 credits"
+          tone="accent"
+        />
+        <ActionCard
+          href="/library/albums?new=ai"
+          icon={Sparkles}
+          title="Generate Album"
+          desc="AI-generate a cohesive album"
+          badge="4 credits"
+          tone="accent"
+        />
+        <ActionCard
+          href="/personas/new?mode=manual"
+          icon={UserPlus}
+          title="Add Artist"
+          desc="Manually add your own artist"
+          badge="Free"
+        />
+        <ActionCard
+          href="/library/albums?new=manual"
+          icon={Disc3}
+          title="Build Album"
+          desc="Assemble your own tracks"
+          badge="Free"
+        />
+        <ActionCard
+          href="/library/tracks?new=ai"
+          icon={Music2}
+          title="Generate Track"
+          desc="One-off AI track with full prompt"
+          badge="2 credits"
+          tone="accent"
+        />
+        <ActionCard
+          href="/library/tracks?new=manual"
+          icon={Plus}
+          title="Add Track"
+          desc="Add a track from your own files"
+          badge="Free"
+        />
+      </section>
+
+      {/* Stats */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat icon={Mic2} label="Artists" value={list.length} />
+        <Stat icon={Disc3} label="Albums" value={totalAlbums} />
+        <Stat icon={Music2} label="Tracks" value={totalTracks} />
+        <Stat icon={Globe2} label="Public" value={publicArtists} />
+      </section>
+
+      {/* Recent artists */}
+      {recent.length > 0 && (
+        <section>
+          <div className="flex items-end justify-between mb-3">
+            <h2 className="text-lg font-semibold">Recent Artists</h2>
             <Link
-              key={p.id}
-              href={`/personas/${p.id}`}
-              className="card hover:border-[color:var(--color-accent)] overflow-hidden flex flex-col gap-3 p-0"
+              href="/personas"
+              className="text-sm text-[color:var(--color-accent)] hover:opacity-80 inline-flex items-center gap-1"
             >
-              {cover ? (
-                <div className="relative w-full aspect-video bg-[color:var(--color-bg-elev)]">
-                  <Image
-                    src={cover}
-                    alt={p.name}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-              ) : (
-                <div className="w-full aspect-video bg-[color:var(--color-bg-elev)] flex items-center justify-center text-3xl font-mono text-[color:var(--color-muted)]">
-                  {p.name.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-              <div className="px-4 pb-4 space-y-1">
-                <div className="font-medium">{p.name}</div>
-                <div className="text-sm text-[color:var(--color-muted)] line-clamp-1">
-                  {p.tagline ?? "No tagline yet"}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap pt-1">
-                  {genres.map((g) => (
-                    <span
-                      key={g}
-                      className="text-xs px-1.5 py-0.5 rounded bg-[color:var(--color-bg-elev)] text-[color:var(--color-muted)]"
-                    >
-                      {g}
-                    </span>
-                  ))}
-                  <span className="text-xs text-[color:var(--color-muted)] ml-auto">
-                    {count} track{count !== 1 ? "s" : ""}
-                  </span>
-                </div>
-              </div>
+              View all <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-          );
-        })}
-      </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {recent.map((p) => (
+              <Link
+                key={p.id}
+                href={`/personas/${p.id}`}
+                className="group rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] overflow-hidden hover:border-[color:var(--color-accent)] transition-colors"
+              >
+                <div className="aspect-square bg-[color:var(--color-bg)] relative">
+                  {p.cover ? (
+                    <Image
+                      src={p.cover}
+                      alt={p.name}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl font-mono text-[color:var(--color-muted)]">
+                      {p.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="px-3 py-2 text-sm font-medium truncate">
+                  {p.name}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function GettingStarted({
+  hasArtist,
+  hasAlbum,
+  hasPublic,
+}: {
+  hasArtist: boolean;
+  hasAlbum: boolean;
+  hasPublic: boolean;
+}) {
+  const items: {
+    done: boolean;
+    title: string;
+    desc: string;
+    href: string;
+    cta: string;
+  }[] = [
+    {
+      done: hasArtist,
+      title: "Generate an Artist",
+      desc: "2 credits",
+      href: "/personas/new",
+      cta: "Start",
+    },
+    {
+      done: hasAlbum,
+      title: "Generate an Album",
+      desc: "4 credits",
+      href: "/library/albums?new=ai",
+      cta: "Start",
+    },
+    {
+      done: hasPublic,
+      title: "Share on Explore",
+      desc: "Free — toggle an artist to Public",
+      href: "/personas",
+      cta: "Open",
+    },
+  ];
+
   return (
-    <div className="card">
-      <div className="label">{label}</div>
-      <div className="text-2xl font-semibold mt-1">{value}</div>
+    <section
+      className="rounded-2xl border border-[color:var(--color-border)] p-5"
+      style={{
+        background:
+          "linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 14%, transparent) 0%, color-mix(in srgb, var(--color-accent) 4%, var(--color-bg-elev)) 60%, var(--color-bg-elev) 100%)",
+      }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Rocket className="h-4 w-4 text-[color:var(--color-accent)]" />
+        <h2 className="font-semibold">Getting Started</h2>
+      </div>
+      <ul className="divide-y divide-[color:var(--color-border)]/60">
+        {items.map((it) => (
+          <li
+            key={it.title}
+            className="py-2.5 flex items-center gap-3"
+          >
+            {it.done ? (
+              <Check className="h-4 w-4 text-[color:var(--color-accent)] shrink-0" />
+            ) : (
+              <Circle className="h-4 w-4 text-[color:var(--color-muted)] shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <div
+                className={`text-sm font-medium ${
+                  it.done ? "text-[color:var(--color-muted)] line-through" : ""
+                }`}
+              >
+                {it.title}
+              </div>
+              <div className="text-xs text-[color:var(--color-muted)]">
+                {it.desc}
+              </div>
+            </div>
+            <Link
+              href={it.href}
+              className="btn-ghost btn text-xs px-3 py-1"
+            >
+              {it.done ? "Open" : it.cta}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ActionCard({
+  href,
+  icon: Icon,
+  title,
+  desc,
+  badge,
+  tone,
+}: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  badge?: string;
+  tone?: "accent";
+}) {
+  return (
+    <Link
+      href={href}
+      className="card flex items-start gap-3 hover:border-[color:var(--color-accent)] transition-colors"
+    >
+      <div
+        className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${
+          tone === "accent"
+            ? "bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]"
+            : "bg-[color:var(--color-bg)] text-[color:var(--color-fg)]"
+        }`}
+        style={
+          tone === "accent"
+            ? {
+                boxShadow:
+                  "0 0 16px color-mix(in srgb, var(--color-accent) 30%, transparent)",
+              }
+            : undefined
+        }
+      >
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">{title}</span>
+          {badge && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[color:var(--color-bg)] border border-[color:var(--color-border)] text-[color:var(--color-muted)]">
+              {badge}
+            </span>
+          )}
+        </div>
+        <div className="text-sm text-[color:var(--color-muted)] mt-0.5">
+          {desc}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function Stat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="card flex items-center gap-3">
+      <div className="h-10 w-10 rounded-lg bg-[color:var(--color-bg)] flex items-center justify-center text-[color:var(--color-accent)]">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <div className="text-2xl font-bold leading-none">{value}</div>
+        <div className="text-xs text-[color:var(--color-muted)] mt-1">
+          {label}
+        </div>
+      </div>
     </div>
   );
 }

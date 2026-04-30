@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
+import { LogOut, Music } from "lucide-react";
 import { auth, signOut } from "@/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
@@ -17,37 +18,59 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : [undefined];
   const theme = u?.theme ?? "dark";
   const accent = u?.accentColor ?? null;
+  const credits = u?.credits ?? 0;
 
   return (
     <div
       data-theme={theme}
       style={accent ? ({ ["--color-accent" as string]: accent } as React.CSSProperties) : undefined}
-      className="grid grid-cols-[240px_1fr] min-h-screen"
+      className="grid grid-cols-[260px_1fr] min-h-screen"
     >
-      <aside className="border-r border-[color:var(--color-border)] p-4 flex flex-col gap-1">
-        <Link href="/dashboard" className="font-mono text-sm mb-6 px-2 hover:opacity-80">
-          ArtistDesigner
-        </Link>
-        <SidebarNav />
-        <div className="mt-auto text-xs text-[color:var(--color-muted)] px-2 truncate">
-          {session.user.email}
-        </div>
+      <aside className="border-r border-[color:var(--color-border)] flex flex-col h-screen sticky top-0">
         <Link
-          href="/settings"
-          className="text-xs px-2 py-1 text-[color:var(--color-muted)] hover:text-white"
+          href="/dashboard"
+          className="flex items-center gap-2.5 px-4 py-4 border-b border-[color:var(--color-border)] hover:bg-[color:var(--color-bg-elev)]/50 transition-colors"
         >
-          Settings
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--color-accent)] text-[color:var(--color-accent-fg)]"
+            style={{ boxShadow: "0 0 18px color-mix(in srgb, var(--color-accent) 35%, transparent)" }}
+          >
+            <Music className="h-5 w-5" />
+          </div>
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-bold">ArtistDesigner</span>
+            <span className="text-[10px] tracking-[0.18em] uppercase text-[color:var(--color-muted)]">
+              AI Music Studio
+            </span>
+          </div>
         </Link>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/" });
-          }}
-        >
-          <button className="text-xs px-2 py-1 text-[color:var(--color-muted)] hover:text-white">
-            Sign out
-          </button>
-        </form>
+
+        <div className="flex-1 min-h-0 px-3 py-3 flex flex-col">
+          <SidebarNav credits={credits} />
+        </div>
+
+        <div className="border-t border-[color:var(--color-border)] px-3 py-2.5 flex items-center justify-between gap-2">
+          <Link
+            href="/settings"
+            className="flex-1 min-w-0 text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)] truncate transition-colors"
+            title={session.user.email ?? ""}
+          >
+            {session.user.email}
+          </Link>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/" });
+            }}
+          >
+            <button
+              aria-label="Sign out"
+              className="p-1.5 rounded-md text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)] hover:bg-[color:var(--color-bg-elev)] transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </form>
+        </div>
       </aside>
       <main className="p-8 max-w-6xl">{children}</main>
       <FeedbackWidget />

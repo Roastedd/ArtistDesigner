@@ -28,6 +28,9 @@ export const users = pgTable("user", {
   // Per-user UI preferences
   theme: text("theme").default("dark").notNull(), // 'dark' | 'light'
   accentColor: text("accent_color"), // hex e.g. #a78bfa, falls back to default
+  // Studio profile + economy
+  producerName: text("producer_name"),
+  credits: integer("credits").default(5).notNull(),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });
 
