@@ -140,6 +140,7 @@ export function lyricsPromptTemplate(
   controls: LyricControls = {},
 ) {
   const section = controls.section ?? "";
+  const fullSong = !section.trim();
   const pov =
     controls.pov === "second"
       ? "second person (you / your)"
@@ -150,36 +151,68 @@ export function lyricsPromptTemplate(
   const lines = controls.lineCount ?? (section.toLowerCase().includes("chorus") ? 4 : 6);
 
   const blocks: string[] = [
-    "You are the ghostwriter for the artist below. You write radio-ready lyrics that sound HUMAN, not AI.",
+    "You are the ghostwriter for the artist below. You write radio-ready lyrics that sound HUMAN, not AI. Real songwriters get paid to write these — match that bar.",
     "",
     "=== HARD RULES (do not violate) ===",
     "1. NO chronological narration (\u201CFirst I woke up, then I went to\u2026\u201D). Drop us mid-scene.",
     "2. NO emotional summaries (\u201CI feel sad and broken\u201D). Show with one concrete image instead.",
     "3. NO formal prose, academic words, or therapist-speak.",
     "4. NO perfectly rhyming AABB couplets all the way through. Use slant rhymes (gone / wrong, mine / time) and the occasional unrhymed line.",
-    "5. NO generic platitudes (\u201Cnever give up\u201D, \u201Cyou are enough\u201D, \u201Clive your truth\u201D).",
+    "5. NO generic platitudes (\u201Cnever give up\u201D, \u201Cyou are enough\u201D, \u201Clive your truth\u201D, \u201Cwe were made to run wild\u201D, \u201Cevery heartbeat a song\u201D).",
     "6. Use sung contractions and fragments: ain\u2019t, gonna, \u2019cause, wanna, lemme, doin\u2019, c\u2019mon. Sentence fragments are GOOD.",
     "7. Drop articles when natural (\u201Cempty glass on counter\u201D not \u201Can empty glass on the counter\u201D).",
-    "8. Prefer concrete nouns (jacket, neon, 3am, asphalt) over abstractions (sorrow, journey, soul).",
+    "8. Prefer concrete nouns (jacket, neon, 3am, asphalt, motel, gas-station, your mama, the L train) over abstractions (sorrow, journey, soul, fire, wild, free).",
     "9. Every line must be SINGABLE. Stressed syllables land on downbeats. Aim for ~\u00B11 syllables of the target.",
     "10. Ad-libs are allowed in parentheses: (oh), (mmm), (yeah), (uh).",
+    "11. NO Hallmark-card imagery (\u201Crun wild\u201D, \u201Cburn for a while\u201D, \u201Cdance in the rain\u201D, \u201Cunder the moonlight\u201D, \u201Chearts on fire\u201D, \u201Csoft like thunder\u201D). If you catch yourself writing one, swap it for a specific noun from the brief or persona.",
+    "12. Specificity beats prettiness. Name a street, a brand, a year, a sibling, a smell. Real songs are full of nouns.",
+  ];
+
+  if (fullSong) {
+    blocks.push(
+      "",
+      "=== TASK: WRITE A FULL SONG ===",
+      "Write a complete, performance-ready song with these sections, IN THIS ORDER, each preceded by the bracketed tag on its own line:",
+      "[Verse 1]   \u2014 6\u20138 lines, set the scene with concrete imagery, no chorus phrasing yet",
+      "[Pre-Chorus] \u2014 2\u20134 lines, builds tension, sets up the hook",
+      "[Chorus]    \u2014 4 lines with a memorable hook line repeated as line 1 and line 3",
+      "[Verse 2]   \u2014 6\u20138 lines, advance the story OR shift POV, do not just rephrase verse 1",
+      "[Chorus]    \u2014 IDENTICAL repeat of the first chorus (copy verbatim)",
+      "[Bridge]    \u2014 2\u20134 lines that pivot emotionally or musically; can break the meter",
+      "[Chorus]    \u2014 IDENTICAL repeat one more time",
+      "[Outro]     \u2014 1\u20133 lines, can be a fragment, ad-lib, or echoed hook",
+      "",
+      `Point of view: ${pov}.`,
+      controls.hookLine
+        ? `HOOK LINE (must appear verbatim as line 1 and line 3 of every chorus): \u201C${controls.hookLine}\u201D`
+        : "Pick a strong, repeatable hook line for the chorus and reuse it identically.",
+      controls.explicit
+        ? "Explicit language is allowed if it serves the line. Don\u2019t force it."
+        : "Keep it clean \u2014 no profanity.",
+    );
+  } else {
+    blocks.push(
+      "",
+      `=== THIS SECTION: ${section} ===`,
+      sectionRule(section),
+      `Target: about ${lines} lines, ~${syl} syllables per line.`,
+      `Point of view: ${pov}.`,
+      controls.hookLine
+        ? `HOOK LINE (must appear verbatim in any chorus, ideally at line 1 and line 3): \u201C${controls.hookLine}\u201D`
+        : "",
+      controls.explicit
+        ? "Explicit language is allowed if it serves the line. Don\u2019t force it."
+        : "Keep it clean \u2014 no profanity.",
+    );
+  }
+
+  blocks.push(
     "",
-    `=== THIS SECTION: ${section || "(unspecified)"} ===`,
-    sectionRule(section || ""),
-    `Target: about ${lines} lines, ~${syl} syllables per line.`,
-    `Point of view: ${pov}.`,
-    controls.hookLine
-      ? `HOOK LINE (must appear verbatim in any chorus, ideally at line 1 and line 3): \"${controls.hookLine}\"`
-      : "",
-    controls.explicit
-      ? "Explicit language is allowed if it serves the line. Don\u2019t force it."
-      : "Keep it clean \u2014 no profanity.",
-    "",
-    "=== ARTIST DNA (LOCKED) ===",
+    "=== ARTIST DNA (LOCKED \u2014 voice, slang, era, references must come from this) ===",
     core,
     "=== BRIEF ===",
     brief,
-  ];
+  );
 
   if (controls.context?.trim()) {
     blocks.push("", "=== OTHER SECTIONS (for continuity, do not repeat) ===", controls.context.trim());
@@ -190,7 +223,9 @@ export function lyricsPromptTemplate(
 
   blocks.push(
     "",
-    `OUTPUT: ONLY the lyric lines for the ${section || "section"}. No section header. No commentary. No markdown. No quotation marks around the whole thing.`,
+    fullSong
+      ? "OUTPUT: ONLY the lyric body with [Section] tags on their own lines. No commentary, no markdown, no quotation marks around the whole thing. Total length should be 32\u201360 lines including tag lines."
+      : `OUTPUT: ONLY the lyric lines for the ${section} section. No section header. No commentary. No markdown. No quotation marks around the whole thing.`,
   );
 
   return blocks.filter(Boolean).join("\n");

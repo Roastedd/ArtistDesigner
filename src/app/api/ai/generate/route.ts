@@ -94,8 +94,8 @@ export async function POST(req: Request) {
           { role: "system", content: "You are a precise creative collaborator." },
           { role: "user", content: userPrompt },
         ],
-        temperature: mode === "lyrics" ? 0.95 : mode === "core" ? 0.6 : 0.7,
-        max_tokens: mode === "lyrics" ? 1800 : mode === "core" ? 600 : 700,
+        temperature: mode === "lyrics" ? 1.05 : mode === "core" ? 0.6 : 0.7,
+        max_tokens: mode === "lyrics" ? 3500 : mode === "core" ? 600 : 700,
       });
     } else {
       const result = await generateWithFallback({
@@ -104,8 +104,8 @@ export async function POST(req: Request) {
           { role: "system", content: "You are a precise creative collaborator." },
           { role: "user", content: userPrompt },
         ],
-        temperature: mode === "lyrics" ? 0.95 : mode === "core" ? 0.6 : 0.7,
-        max_tokens: mode === "lyrics" ? 1800 : mode === "core" ? 600 : 700,
+        temperature: mode === "lyrics" ? 1.05 : mode === "core" ? 0.6 : 0.7,
+        max_tokens: mode === "lyrics" ? 3500 : mode === "core" ? 600 : 700,
       });
       text = result.content;
     }

@@ -292,6 +292,12 @@ function InlineForge({
   const [loading, setLoading] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Default to the better free model for lyrics so output is less corny.
+  const [model, setModel] = useState<string>(
+    mode === "lyrics"
+      ? "openai/gpt-oss-120b:free"
+      : "openai/gpt-oss-20b:free",
+  );
 
   const templates = useMemo(
     () => templatesByCategory(mode as PromptTemplateMode),
@@ -314,7 +320,7 @@ function InlineForge({
           personaId: persona.id,
           mode,
           brief,
-          // omit model → server uses fallback chain (free first)
+          model,
         }),
       });
       if (!res.ok) {
@@ -405,21 +411,45 @@ function InlineForge({
         placeholder={placeholder}
       />
 
-      <button
-        onClick={generate}
-        disabled={loading || !brief.trim()}
-        className="btn-primary inline-flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" /> Generating…
-          </>
-        ) : (
-          <>
-            <Sparkles className="h-4 w-4" /> Generate
-          </>
-        )}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={generate}
+          disabled={loading || !brief.trim()}
+          className="btn-primary inline-flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Generating…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" /> Generate
+            </>
+          )}
+        </button>
+        <label className="text-[11px] text-[color:var(--color-muted)] inline-flex items-center gap-1.5 ml-auto">
+          Model:
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="bg-[color:var(--color-bg)] border border-[color:var(--color-border)] rounded px-1.5 py-0.5 text-xs"
+          >
+            <optgroup label="Free">
+              <option value="openai/gpt-oss-20b:free">GPT-OSS 20B (fast)</option>
+              <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (better)</option>
+            </optgroup>
+            <optgroup label="Paid (best quality)">
+              <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+              <option value="anthropic/claude-sonnet-4.6">Claude Sonnet 4.6</option>
+            </optgroup>
+          </select>
+        </label>
+      </div>
+      {mode === "lyrics" && (
+        <p className="text-[11px] text-[color:var(--color-muted)]">
+          Output too generic? Re-roll, or switch to Claude Sonnet 4.6 for noticeably grittier writing.
+        </p>
+      )}
 
       {output && (
         <div className="space-y-2">
@@ -749,47 +779,7 @@ function LyricsStep({
   selectedPersona: Persona | null;
   platform: Platform | null;
 }) {
-  const exampleLyrics = `[Verse 1]
-City lights they fade to gold
-Every story I was told
-Came alive the day we met
-On the rooftop, no regret
-
-[Pre-Chorus]
-And the night, it pulls us under
-Hearts on fire, soft like thunder
-
-[Chorus]
-We were made to run wild
-Made to burn for a while
-Every heartbeat a song
-We've been singing all along
-
-[Verse 2]
-Faded jeans, your mother's ring
-Promises that summers bring
-Maps we drew on motel walls
-Names we whispered down the halls
-
-[Chorus]
-We were made to run wild
-Made to burn for a while
-Every heartbeat a song
-We've been singing all along
-
-[Bridge]
-If the world forgets our name
-We'll burn it down again
-
-[Chorus]
-We were made to run wild
-Made to burn for a while
-Every heartbeat a song
-We've been singing all along
-
-[Outro]
-We've been singing all along...`;
-
+  const [source, setSource] = useState<"forge" | "platform">("forge");
   const platformName = platform === "udio" ? "Udio" : "Suno";
 
   return (
@@ -797,7 +787,71 @@ We've been singing all along...`;
       <p className="text-sm text-[color:var(--color-muted)]">
         Lyrics are the words your AI singer will perform. {platformName}{" "}
         reads <strong>section tags</strong> like <code>[Verse 1]</code> and{" "}
-        <code>[Chorus]</code> and shapes the song around them.
+        <code>[Chorus]</code> and shapes the song around them. Pick how you
+        want to write yours:
+      </p>
+
+      <div className="flex gap-1 border-b border-[color:var(--color-border)]">
+        <SourceTab
+          active={source === "forge"}
+          onClick={() => setSource("forge")}
+          label={`Generate here (on-brand)`}
+        />
+        <SourceTab
+          active={source === "platform"}
+          onClick={() => setSource("platform")}
+          label={`Let ${platformName} write them`}
+        />
+      </div>
+
+      {source === "forge" ? (
+        <ForgeLyricsPath
+          selectedPersona={selectedPersona}
+          platformName={platformName}
+        />
+      ) : (
+        <PlatformLyricsPath platform={platform} />
+      )}
+    </div>
+  );
+}
+
+function SourceTab({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 text-sm border-b-2 -mb-px transition-colors ${
+        active
+          ? "border-[color:var(--color-accent)] text-[color:var(--color-fg)] font-medium"
+          : "border-transparent text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ForgeLyricsPath({
+  selectedPersona,
+  platformName,
+}: {
+  selectedPersona: Persona | null;
+  platformName: string;
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-[color:var(--color-muted)]">
+        Best for: keeping every release on-brand. Lyrics are written in your
+        artist&apos;s voice (era, slang, themes from their DNA) and arrive
+        with full <code>[Verse]/[Chorus]/[Bridge]</code> structure.
       </p>
 
       <InlineForge
@@ -806,61 +860,8 @@ We've been singing all along...`;
         placeholder="Brief: a song about driving home in the rain after a fight, chorus repeats 'we drive on'"
       />
 
-      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
-        <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
-          Or do it on the persona page
-        </div>
-        <ol className="text-sm space-y-2 list-decimal pl-5">
-          <li>
-            {selectedPersona ? (
-              <>
-                Open{" "}
-                <a
-                  href={`/personas/${selectedPersona.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[color:var(--color-accent)] hover:underline inline-flex items-center gap-1"
-                >
-                  <strong>{selectedPersona.name}</strong>{" "}
-                  <ExternalLink className="h-3 w-3" />
-                </a>{" "}
-                in a new tab.
-              </>
-            ) : (
-              <>
-                Open your artist&apos;s page (go back to step 2 if you skipped
-                it).
-              </>
-            )}
-          </li>
-          <li>
-            Scroll to the <strong>Prompt Forge</strong> card on the right.
-          </li>
-          <li>
-            Click the <strong>Lyrics</strong> tab (next to &quot;Suno
-            prompt&quot;).
-          </li>
-          <li>
-            Hit <strong>Browse templates →</strong> and pick a theme like{" "}
-            <em>&quot;Insomnia&quot;</em> or <em>&quot;Letter never sent&quot;</em>.
-            Or type your own brief: <em>&quot;a song about driving home in
-            the rain after a fight&quot;</em>.
-          </li>
-          <li>
-            Click <strong>Generate</strong>. The lyrics will appear with the{" "}
-            <code>[Verse]</code> / <code>[Chorus]</code> tags already in place.
-          </li>
-          <li>
-            Click <strong>Copy</strong> in the top-right of the output box —
-            you&apos;ll paste this into {platformName} in step 5.
-          </li>
-        </ol>
-      </div>
-
       <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs space-y-1">
-        <div className="font-semibold text-amber-300">
-          Quality rules (the Forge enforces these for you)
-        </div>
+        <div className="font-semibold text-amber-300">Quality rules</div>
         <ul className="space-y-0.5 list-disc pl-4 text-[color:var(--color-muted)]">
           <li>
             Use <code>[Verse 1] / [Pre-Chorus] / [Chorus] / [Verse 2] / [Chorus] / [Bridge] / [Chorus] / [Outro]</code>
@@ -870,12 +871,106 @@ We've been singing all along...`;
           <li>{platformName} caps lyrics around <strong>3000 characters</strong>. Trim if longer.</li>
         </ul>
       </div>
+    </div>
+  );
+}
 
-      <CopyBlock
-        label="Example lyric structure (use as reference)"
-        text={exampleLyrics}
-        lang="text"
-      />
+function PlatformLyricsPath({ platform }: { platform: Platform | null }) {
+  const isUdio = platform === "udio";
+  const name = isUdio ? "Udio" : "Suno";
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-[color:var(--color-muted)]">
+        Best for: when you just want a song fast. {name} writes lyrics from
+        a one-line prompt — no structure work needed. Trade-off: it won&apos;t
+        match your artist&apos;s voice as closely.
+      </p>
+
+      <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 space-y-2">
+        <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
+          How to do it on {name}
+        </div>
+        {isUdio ? (
+          <ol className="text-sm space-y-2 list-decimal pl-5">
+            <li>
+              Open{" "}
+              <a
+                href="https://www.udio.com/create"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[color:var(--color-accent)] hover:underline"
+              >
+                udio.com/create
+              </a>{" "}
+              and sign in.
+            </li>
+            <li>
+              Leave <strong>Manual Mode</strong> OFF (default).
+            </li>
+            <li>
+              In the prompt box, type a <strong>one-line song idea</strong>{" "}
+              + style tags: <em>&quot;a song about driving home in the rain
+              after a fight, indie pop, female alto, 110 BPM&quot;</em>
+            </li>
+            <li>
+              Click <strong>Create</strong>. Udio writes the lyrics + audio
+              together. You&apos;ll see the lyrics appear on the track when
+              it finishes.
+            </li>
+            <li>
+              Like the lyrics but want to tweak? Click the track →{" "}
+              <strong>View lyrics</strong> → copy them, then switch to Manual
+              Mode and edit before regenerating.
+            </li>
+          </ol>
+        ) : (
+          <ol className="text-sm space-y-2 list-decimal pl-5">
+            <li>
+              Open{" "}
+              <a
+                href="https://suno.com/create"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[color:var(--color-accent)] hover:underline"
+              >
+                suno.com/create
+              </a>{" "}
+              and sign in.
+            </li>
+            <li>
+              Make sure the top toggle is on <strong>Simple</strong> (NOT
+              Custom).
+            </li>
+            <li>
+              In the &quot;Song description&quot; box, type your idea +
+              style: <em>&quot;a song about driving home in the rain after a
+              fight, indie pop, female alto, 110 BPM, anthemic chorus&quot;</em>
+            </li>
+            <li>
+              Confirm <strong>Instrumental</strong> is OFF.
+            </li>
+            <li>
+              Click <strong>Create</strong>. Suno writes lyrics + audio
+              together (2 takes).
+            </li>
+            <li>
+              To edit the AI-written lyrics: click the track → ⋯ menu →{" "}
+              <strong>Edit lyrics</strong>, paste your tweaks, then{" "}
+              <strong>Re-generate</strong>.
+            </li>
+          </ol>
+        )}
+      </div>
+
+      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs space-y-1">
+        <div className="font-semibold text-amber-300">Hybrid trick (recommended)</div>
+        <p className="text-[color:var(--color-muted)]">
+          Let {name} write a first draft for free, then come back to the
+          &quot;Generate here&quot; tab and paste those lyrics into the
+          brief field as a starting point — the AI will rewrite them in your
+          artist&apos;s voice while keeping the structure.
+        </p>
+      </div>
     </div>
   );
 }
