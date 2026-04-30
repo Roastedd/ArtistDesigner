@@ -6,7 +6,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 9;
 
 export async function setOnboardingStep(step: number) {
   const session = await auth();

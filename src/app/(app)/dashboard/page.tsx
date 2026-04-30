@@ -287,7 +287,7 @@ function GettingStarted({
   );
 }
 
-const FIRST_SONG_TOTAL = 6;
+const FIRST_SONG_TOTAL = 9;
 
 function FirstSongBanner({
   step,

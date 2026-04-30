@@ -233,6 +233,42 @@ export const feedback = pgTable("feedback", {
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * AI mix/master analysis. One row per analysis run; users can retain
+ * history per track.
+ */
+export const songAnalyses = pgTable("song_analysis", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  trackId: uuid("track_id").references(() => tracks.id, { onDelete: "set null" }),
+  audioUrl: text("audio_url").notNull(),
+  // User-provided context to ground the analysis.
+  contextGenre: text("context_genre"),
+  contextNotes: text("context_notes"),
+  // Structured AI output (overall score, per-axis ratings, recommendations).
+  result: jsonb("result").$type<{
+    overall: number;
+    mixBalance: number;
+    vocalClarity: number;
+    lowEnd: number;
+    stereoImage: number;
+    masteringReadiness: number;
+    distributionReadiness: number;
+    summary: string;
+    strengths: string[];
+    issues: string[];
+    masteringActions: string[];
+    nextSteps: string[];
+  }>(),
+  model: text("model"),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("song_analysis_user_idx").on(t.userId),
+  index("song_analysis_track_idx").on(t.trackId),
+]);
+
 /* ────────────────────────────────────────────── */
 export const personasRelations = relations(personas, ({ many }) => ({
   eras: many(eras),
