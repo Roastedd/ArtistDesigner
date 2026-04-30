@@ -6,6 +6,7 @@ import { auth, signOut } from "@/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import SidebarNav from "./sidebar-nav";
+import MobileChrome from "./mobile-chrome";
 import { FeedbackWidget } from "@/components/feedback-widget";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -19,13 +20,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const theme = u?.theme ?? "dark";
   const accent = u?.accentColor ?? null;
 
+  const signOutAction = async () => {
+    "use server";
+    await signOut({ redirectTo: "/" });
+  };
+
   return (
     <div
       data-theme={theme}
       style={accent ? ({ ["--color-accent" as string]: accent } as React.CSSProperties) : undefined}
-      className="grid grid-cols-[260px_1fr] min-h-screen"
+      className="md:grid md:grid-cols-[260px_1fr] min-h-screen"
     >
-      <aside className="border-r border-[color:var(--color-border)] flex flex-col h-screen sticky top-0">
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex border-r border-[color:var(--color-border)] flex-col h-screen sticky top-0">
         <Link
           href="/dashboard"
           className="flex items-center gap-2.5 px-4 py-4 border-b border-[color:var(--color-border)] hover:bg-[color:var(--color-bg-elev)]/50 transition-colors"
@@ -56,12 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           >
             {session.user.email}
           </Link>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/" });
-            }}
-          >
+          <form action={signOutAction}>
             <button
               aria-label="Sign out"
               className="p-1.5 rounded-md text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)] hover:bg-[color:var(--color-bg-elev)] transition-colors"
@@ -71,8 +73,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </form>
         </div>
       </aside>
-      <main className="p-8 max-w-6xl">{children}</main>
+
+      <div className="flex flex-col min-w-0">
+        <MobileChrome email={session.user.email} signOutAction={signOutAction} />
+        <main className="flex-1 min-w-0 px-4 py-5 sm:px-6 sm:py-6 md:p-8 max-w-6xl w-full pb-24 md:pb-8 safe-x animate-fade-up">
+          {children}
+        </main>
+      </div>
       <FeedbackWidget />
     </div>
   );
 }
+

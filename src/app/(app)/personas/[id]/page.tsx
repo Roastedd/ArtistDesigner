@@ -115,9 +115,11 @@ function ProfileView({
       <header className="mb-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
-            <h1 className="text-3xl font-semibold tracking-tight">{p.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight break-words">
+              {p.name}
+            </h1>
             {p.tagline && (
-              <p className="text-[color:var(--color-muted)] mt-1">
+              <p className="text-[color:var(--color-muted)] mt-1 text-sm sm:text-base">
                 {p.tagline}
               </p>
             )}
@@ -135,12 +137,15 @@ function ProfileView({
               </div>
             )}
           </div>
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            <Link href={`/personas/${p.id}/albums`} className="btn gap-2">
+          <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto sm:shrink-0">
+            <Link
+              href={`/personas/${p.id}/albums`}
+              className="btn gap-2 justify-center w-full sm:w-auto"
+            >
               <Plus className="h-4 w-4" />
               Create Album
             </Link>
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs flex-wrap">
               <Link
                 href={`/personas/${p.id}?edit=1`}
                 className="btn-ghost btn gap-1.5"
@@ -154,7 +159,7 @@ function ProfileView({
               >
                 Export JSON
               </Link>
-              <span className="text-[color:var(--color-muted)] font-mono">
+              <span className="text-[color:var(--color-muted)] font-mono truncate">
                 {p.slug}
               </span>
             </div>

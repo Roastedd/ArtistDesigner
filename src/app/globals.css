@@ -23,7 +23,25 @@
 }
 
 html, body { background: var(--color-bg); color: var(--color-fg); }
-body { font-family: var(--font-sans), system-ui, sans-serif; }
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+html { scroll-behavior: smooth; }
+
+/* Prevent iOS auto-zoom on focus by ensuring inputs are >=16px */
+@media (max-width: 640px) {
+  .input, .textarea, .select, input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Better mobile button taps */
+button, a, [role="button"] { touch-action: manipulation; }
 
 * { border-color: var(--color-border); }
 
@@ -44,7 +62,10 @@ body { font-family: var(--font-sans), system-ui, sans-serif; }
   background: var(--color-bg-elev);
   border: 1px solid var(--color-border);
   border-radius: .75rem;
-  padding: 1.25rem;
+  padding: 1rem;
+}
+@media (min-width: 640px) {
+  .card { padding: 1.25rem; }
 }
 .input, .textarea, .select {
   width: 100%;
@@ -75,4 +96,38 @@ body { font-family: var(--font-sans), system-ui, sans-serif; }
 @keyframes slideInLeft {
   from { opacity: 0; transform: translateX(-18px); }
   to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Shared mobile-friendly animations ───────────────────────── */
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(.96) } to { opacity: 1; transform: scale(1) } }
+@keyframes drawerIn { from { transform: translateX(-100%) } to { transform: translateX(0) } }
+@keyframes overlayIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+
+.animate-fade-in { animation: fadeIn .25s ease both; }
+.animate-fade-up { animation: fadeUp .35s cubic-bezier(.2,.8,.2,1) both; }
+.animate-scale-in { animation: scaleIn .25s cubic-bezier(.2,.8,.2,1) both; }
+.animate-drawer-in { animation: drawerIn .28s cubic-bezier(.2,.8,.2,1) both; }
+.animate-overlay-in { animation: overlayIn .2s ease both; }
+
+/* Tap micro-interaction */
+.btn, .btn-ghost, .card a, [role="button"] {
+  transition: transform .12s ease, opacity .15s ease, background-color .15s ease, border-color .15s ease;
+}
+.btn:active, .btn-ghost:active { transform: scale(.97); }
+
+/* Safe-area helpers (iPhone notch / home bar) */
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-x      { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+/* Hide scrollbars on horizontal mobile scrollers */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
