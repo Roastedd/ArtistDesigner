@@ -6,36 +6,13 @@ import { db } from "@/db";
 import { albums, personas, releases } from "@/db/schema";
 import { PersonaTabs } from "../../persona-tabs";
 import { updateRelease, deleteRelease } from "../actions";
-import { RELEASE_CHECKLIST } from "../checklist";
+import {
+  RELEASE_CHECKLIST,
+  PHASE_META,
+  itemsByPhase,
+} from "../checklist";
 import { DeleteButton } from "@/components/delete-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-
-const PHASES: Array<{ label: string; prefix: string }> = [
-  { label: "Prep", prefix: "prep" },
-  { label: "Rights & IDs", prefix: "rights" },
-  { label: "Distributor", prefix: "distributor" },
-  { label: "Upload & Schedule", prefix: "upload" },
-  { label: "Promo", prefix: "promo" },
-  { label: "Post-Release", prefix: "post" },
-];
-
-const NICE: Record<string, string> = {
-  "prep:concept_locked": "Concept locked",
-  "prep:cover_art_final": "Cover art final",
-  "prep:audio_mastered": "Audio mastered",
-  "rights:isrc_assigned": "ISRC assigned",
-  "rights:upc_assigned": "UPC assigned",
-  "rights:metadata_final": "Metadata finalized",
-  "distributor:account_ready": "Account ready",
-  "distributor:splits_set": "Splits set",
-  "upload:audio_uploaded": "Audio uploaded",
-  "upload:scheduled_date": "Scheduled date confirmed",
-  "promo:visual_assets": "Visual assets pack",
-  "promo:short_clips": "Short-form clips ready",
-  "promo:press_one_pager": "Press one-pager",
-  "post:dsp_links_collected": "DSP links collected",
-  "post:smartlink_published": "Smartlink published",
-};
 
 export default async function ReleasePage({
   params,
@@ -140,25 +117,37 @@ export default async function ReleasePage({
           </label>
         </div>
 
-        {PHASES.map((phase) => {
-          const items = RELEASE_CHECKLIST.filter((k) =>
-            k.startsWith(`${phase.prefix}:`),
-          );
+        {itemsByPhase().map(({ phase, items }) => {
+          const phaseDone = items.filter((it) => checklist[it.id]).length;
+          const meta = PHASE_META[phase];
           return (
-            <div key={phase.prefix} className="card">
-              <h2 className="font-medium mb-3">{phase.label}</h2>
-              <ul className="space-y-2">
-                {items.map((k) => (
-                  <li key={k} className="flex items-center gap-3">
+            <div key={phase} className="card">
+              <div className="flex items-baseline justify-between gap-3 mb-1">
+                <h2 className="font-medium">{meta.label}</h2>
+                <span className="text-[11px] uppercase tracking-wide text-[color:var(--color-muted)]">
+                  {meta.window} · {phaseDone}/{items.length}
+                </span>
+              </div>
+              <p className="text-xs text-[color:var(--color-muted)] mb-3">
+                {meta.intent}
+              </p>
+              <ul className="space-y-2.5">
+                {items.map((item) => (
+                  <li key={item.id} className="flex items-start gap-3">
                     <input
                       type="checkbox"
-                      id={k}
-                      name={`chk:${k}`}
-                      defaultChecked={!!checklist[k]}
-                      className="size-4 accent-[color:var(--color-accent)]"
+                      id={item.id}
+                      name={`chk:${item.id}`}
+                      defaultChecked={!!checklist[item.id]}
+                      className="size-4 mt-0.5 accent-[color:var(--color-accent)]"
                     />
-                    <label htmlFor={k} className="text-sm">
-                      {NICE[k] ?? k}
+                    <label htmlFor={item.id} className="text-sm flex-1 cursor-pointer">
+                      <div>{item.label}</div>
+                      {item.description && (
+                        <div className="text-[11px] text-[color:var(--color-muted)] mt-0.5">
+                          {item.description}
+                        </div>
+                      )}
                     </label>
                   </li>
                 ))}
