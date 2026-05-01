@@ -35,6 +35,12 @@ function inferFormat(url: string, contentType: string | null): AudioFormat | nul
 const SYSTEM_PROMPT = `You are an expert mix and mastering engineer who reviews
 AI-generated music (Suno/Udio) and gives the artist actionable feedback.
 You will receive an audio file plus brief context (genre, what they're going for).
+You may also receive an OBJECTIVE MEASUREMENTS block with numbers (LUFS, dBTP,
+peak, crest factor, spectral balance, stereo correlation, clipped samples)
+computed by the client. When that block is present, treat those numbers as
+ground truth — do NOT contradict them. Reference exact values in your
+strengths/issues/masteringActions where useful (e.g. "true peak +0.4 dBTP —
+add a brickwall limiter at -1.0 dBTP ceiling").
 
 Listen carefully and judge the track on these axes (1-10):
 - mixBalance: relative levels of vocals, drums, bass, other elements
@@ -82,11 +88,12 @@ export async function POST(req: NextRequest) {
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
-  const { audioUrl, trackId, genre, notes } = body as {
+  const { audioUrl, trackId, genre, notes, metrics } = body as {
     audioUrl?: unknown;
     trackId?: unknown;
     genre?: unknown;
     notes?: unknown;
+    metrics?: unknown;
   };
 
   if (typeof audioUrl !== "string" || !/^https?:\/\//.test(audioUrl)) {
@@ -162,9 +169,10 @@ export async function POST(req: NextRequest) {
     "Analyze this track and return JSON only.",
     typeof genre === "string" && genre ? `Genre: ${genre}` : null,
     typeof notes === "string" && notes ? `Artist notes: ${notes}` : null,
+    typeof metrics === "string" && metrics ? metrics : null,
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n\n");
 
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },

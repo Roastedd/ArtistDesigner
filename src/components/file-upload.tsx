@@ -8,6 +8,8 @@ interface Props {
   kind: Kind;
   /** Called with the final public URL after a successful upload */
   onUploaded: (publicUrl: string) => void;
+  /** Called with the raw File as soon as the user picks it (before upload starts). */
+  onFile?: (file: File) => void;
   accept?: string;
   label?: string;
   className?: string;
@@ -23,6 +25,7 @@ type State = "idle" | "uploading" | "done" | "error";
 export default function FileUpload({
   kind,
   onUploaded,
+  onFile,
   accept,
   label,
   className = "",
@@ -35,6 +38,8 @@ export default function FileUpload({
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    onFile?.(file);
 
     setState("uploading");
     setProgress(0);

@@ -19,6 +19,11 @@ import {
   X,
 } from "lucide-react";
 import FileUpload from "@/components/file-upload";
+import {
+  computeAudioMetrics,
+  formatMetricsForPrompt,
+  type AudioMetrics,
+} from "@/lib/audio-metrics";
 import { templatesByCategory, type PromptTemplateMode } from "@/lib/prompt-templates";
 import { lintLyrics } from "@/lib/persona-prompt";
 import {
@@ -1636,6 +1641,28 @@ function AnalyzeStep() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState<AudioMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+
+  async function handleFile(file: File) {
+    setMetrics(null);
+    setMetricsError(null);
+    setMetricsLoading(true);
+    try {
+      const m = await computeAudioMetrics(file);
+      setMetrics(m);
+    } catch (e) {
+      // Decode failure is non-fatal — LLM analysis still works without metrics.
+      setMetricsError(
+        e instanceof Error
+          ? e.message
+          : "Could not measure file (will analyze without objective metrics)",
+      );
+    } finally {
+      setMetricsLoading(false);
+    }
+  }
 
   async function analyze() {
     if (!audioUrl) return;
@@ -1646,7 +1673,12 @@ function AnalyzeStep() {
       const res = await fetch("/api/ai/song-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioUrl, genre, notes }),
+        body: JSON.stringify({
+          audioUrl,
+          genre,
+          notes,
+          metrics: metrics ? formatMetricsForPrompt(metrics) : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Analysis failed");
@@ -1675,6 +1707,7 @@ function AnalyzeStep() {
         </label>
         <FileUpload
           kind="audio"
+          onFile={handleFile}
           onUploaded={(url) => {
             setAudioUrl(url);
             setResult(null);
@@ -1685,6 +1718,19 @@ function AnalyzeStep() {
           <div className="text-xs text-[color:var(--color-muted)] flex items-center gap-1.5">
             <Check className="h-3.5 w-3.5 text-[color:var(--color-accent)]" />
             Uploaded — ready to analyze
+          </div>
+        )}
+        {metricsLoading && (
+          <div className="text-xs text-[color:var(--color-muted)] flex items-center gap-1.5">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Measuring loudness, peak, and spectral balance…
+          </div>
+        )}
+        {metrics && <MetricsPreview metrics={metrics} />}
+        {metricsError && !metrics && (
+          <div className="text-xs text-[color:var(--color-muted)]">
+            Couldn&apos;t measure file in browser ({metricsError}). Will
+            analyze without objective metrics.
           </div>
         )}
       </div>
@@ -1737,6 +1783,65 @@ function AnalyzeStep() {
       )}
 
       {result && <AnalysisCard result={result} />}
+    </div>
+  );
+}
+
+function MetricsPreview({ metrics }: { metrics: AudioMetrics }) {
+  const items: { label: string; value: string; warn?: boolean }[] = [
+    {
+      label: "Loudness",
+      value: `${metrics.integratedLufs.toFixed(1)} LUFS`,
+      warn: metrics.integratedLufs > -7 || metrics.integratedLufs < -20,
+    },
+    {
+      label: "True peak",
+      value: `${metrics.truePeakDbtp.toFixed(1)} dBTP`,
+      warn: metrics.truePeakDbtp > -1,
+    },
+    {
+      label: "Peak",
+      value: `${metrics.peakDbfs.toFixed(1)} dBFS`,
+      warn: metrics.peakDbfs > -0.5,
+    },
+    {
+      label: "Crest",
+      value: `${metrics.crestFactorDb.toFixed(1)} dB`,
+      warn: metrics.crestFactorDb < 6,
+    },
+    {
+      label: "Stereo",
+      value:
+        metrics.stereoCorrelation === null
+          ? "mono"
+          : metrics.stereoCorrelation.toFixed(2),
+      warn:
+        metrics.stereoCorrelation !== null &&
+        metrics.stereoCorrelation < -0.2,
+    },
+    {
+      label: "Clipped",
+      value: `${metrics.clippingPct.toFixed(2)}%`,
+      warn: metrics.clippingPct > 0.01,
+    },
+  ];
+  return (
+    <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] p-3 space-y-2">
+      <div className="text-xs uppercase tracking-wider text-[color:var(--color-muted)]">
+        Measured in your browser
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-xs font-mono">
+        {items.map((it) => (
+          <div key={it.label} className="flex items-center justify-between">
+            <span className="text-[color:var(--color-muted)]">{it.label}</span>
+            <span className={it.warn ? "text-amber-400" : ""}>{it.value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="text-[10px] text-[color:var(--color-muted)]">
+        These objective measurements are sent with your audio so the AI can
+        give numerically grounded feedback.
+      </div>
     </div>
   );
 }
