@@ -54,7 +54,7 @@ export function staticSunoPrompt(p: Persona): string {
   return parts.filter(Boolean).join(", ") + ".";
 }
 
-export function sunoPromptTemplate(core: string, brief: string) {  return [
+export function sunoPromptTemplate(core: string, brief: string, exemplars?: string) {  return [
     "You are a senior music director writing a Suno style prompt.",
     "",
     "OUTPUT FORMAT (no preamble, no markdown, no quotes):",
@@ -67,12 +67,14 @@ export function sunoPromptTemplate(core: string, brief: string) {  return [
     "- No full sentences. No 'a', 'the', 'with'. Tag-style.",
     "- Pull genre / BPM range / vocal / instrumentation directly from the Artist DNA.",
     "- If a key is not specified, choose one that matches the mood (minor for melancholy, major for uplift).",
+    "- If EXEMPLARS are present, mirror their vocabulary and structure \u2014 these are styles that have already worked for this artist.",
     "",
     "=== ARTIST DNA (LOCKED) ===",
     core,
+    exemplars ? "\n=== EXEMPLAR STYLES (proven \u2014 mirror this vocabulary) ===\n" + exemplars : "",
     "=== BRIEF ===",
     brief,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -138,6 +140,7 @@ export function lyricsPromptTemplate(
   core: string,
   brief: string,
   controls: LyricControls = {},
+  exemplars?: string,
 ) {
   const section = controls.section ?? "";
   const fullSong = !section.trim();
@@ -210,9 +213,17 @@ export function lyricsPromptTemplate(
     "",
     "=== ARTIST DNA (LOCKED \u2014 voice, slang, era, references must come from this) ===",
     core,
-    "=== BRIEF ===",
-    brief,
   );
+
+  if (exemplars) {
+    blocks.push(
+      "",
+      "=== PROVEN LYRICS (this artist's actual hits \u2014 mirror the tone, vocabulary, image-density. Do NOT copy lines verbatim) ===",
+      exemplars,
+    );
+  }
+
+  blocks.push("=== BRIEF ===", brief);
 
   if (controls.context?.trim()) {
     blocks.push("", "=== OTHER SECTIONS (for continuity, do not repeat) ===", controls.context.trim());
@@ -300,8 +311,9 @@ export function promptTemplateFor(
   target: "suno" | "udio" | "riffusion",
   core: string,
   brief: string,
+  exemplars?: string,
 ) {
-  if (target === "suno") return sunoPromptTemplate(core, brief);
+  if (target === "suno") return sunoPromptTemplate(core, brief, exemplars);
   const targetNotes: Record<"udio" | "riffusion", string> = {
     udio:
       "Write a Udio-style prompt: comma-separated tags + a short evocative phrase. Mention vocal timbre, era cues, mix character.",
@@ -313,12 +325,16 @@ export function promptTemplateFor(
     targetNotes[target],
     "Output a single, dense prompt (no preamble, no markdown).",
     "It must reflect the locked Artist DNA below verbatim in spirit.",
+    exemplars
+      ? "If EXEMPLARS are present, mirror their vocabulary \u2014 those styles already worked for this artist."
+      : "",
     "",
     "=== ARTIST DNA (LOCKED) ===",
     core,
+    exemplars ? "\n=== EXEMPLAR STYLES (proven) ===\n" + exemplars : "",
     "=== BRIEF ===",
     brief,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 export function buildCorePromptTemplate(p: {

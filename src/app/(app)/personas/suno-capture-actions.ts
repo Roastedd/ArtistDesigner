@@ -188,6 +188,98 @@ export async function importExternalClip(input: ImportClipInput) {
   return { ok: true as const, trackId: track.id };
 }
 
+/**
+ * Bulk import. Each clip block is separated by a line of three or more
+ * dashes (---). Within a block, lines like KEY: value set fields:
+ *   TITLE, URL, STYLE, LYRICS (multi-line until next KEY:)
+ */
+const bulkSchema = z.object({
+  personaId: z.string().uuid(),
+  source: z.enum(["suno", "udio", "manual"]).default("suno"),
+  raw: z.string().min(10).max(200_000),
+  pinAll: z.boolean().default(false),
+});
+
+type ParsedClip = {
+  title: string;
+  externalUrl?: string;
+  stylePrompt?: string;
+  lyrics?: string;
+};
+
+const KEY_RE = /^(TITLE|URL|STYLE|LYRICS)\s*:\s*(.*)$/i;
+
+function parseBulk(raw: string): ParsedClip[] {
+  const blocks = raw
+    .split(/^[-=]{3,}\s*$/m)
+    .map((b) => b.trim())
+    .filter((b) => b.length > 0);
+  const out: ParsedClip[] = [];
+  for (const block of blocks) {
+    const lines = block.split(/\r?\n/);
+    const clip: ParsedClip = { title: "" };
+    let inLyrics = false;
+    const lyricsBuf: string[] = [];
+    for (const ln of lines) {
+      const m = ln.match(KEY_RE);
+      if (m) {
+        inLyrics = false;
+        const key = m[1].toUpperCase();
+        const val = m[2].trim();
+        if (key === "TITLE") clip.title = val;
+        else if (key === "URL") clip.externalUrl = val;
+        else if (key === "STYLE") clip.stylePrompt = val;
+        else if (key === "LYRICS") {
+          inLyrics = true;
+          if (val) lyricsBuf.push(val);
+        }
+      } else if (inLyrics) {
+        lyricsBuf.push(ln);
+      } else if (!clip.title && ln.trim()) {
+        clip.title = ln.trim();
+      }
+    }
+    if (lyricsBuf.length) clip.lyrics = lyricsBuf.join("\n").trim();
+    if (clip.title) out.push(clip);
+  }
+  return out;
+}
+
+export async function bulkImportClips(input: z.input<typeof bulkSchema>) {
+  const parsed = bulkSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  const data = parsed.data;
+  try {
+    await assertOwnsPersona(data.personaId);
+  } catch {
+    return { ok: false as const, error: "Persona not found" };
+  }
+
+  const clips = parseBulk(data.raw);
+  if (clips.length === 0) {
+    return { ok: false as const, error: "No clips parsed. Check the format." };
+  }
+
+  let imported = 0;
+  const errors: string[] = [];
+  for (const c of clips) {
+    const res = await importExternalClip({
+      personaId: data.personaId,
+      source: data.source,
+      title: c.title,
+      externalUrl: c.externalUrl,
+      stylePrompt: c.stylePrompt,
+      lyrics: c.lyrics,
+      pinAsExemplar: data.pinAll,
+    });
+    if (res.ok) imported++;
+    else errors.push(`${c.title}: ${res.error}`);
+  }
+  return { ok: true as const, imported, total: clips.length, errors };
+}
+
 /** Toggle whether a track is pinned as a canonical exemplar. */
 export async function setExemplar(trackId: string, pin: boolean) {
   const [t] = await db

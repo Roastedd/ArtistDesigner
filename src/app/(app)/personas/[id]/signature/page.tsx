@@ -60,6 +60,14 @@ export default async function SignaturePage({
           Built automatically from every Suno/Udio clip you save back here.
           The bigger a tag, the more often it shows up in clips that worked.
         </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-sm">
+          <Link
+            href={`/personas/${id}/import-suno`}
+            className="btn-ghost"
+          >
+            Bulk import from Suno
+          </Link>
+        </div>
       </header>
 
       {totalSignals === 0 && exemplars.length === 0 ? (
@@ -92,6 +100,12 @@ function EmptyState({ personaId }: { personaId: string }) {
           className="btn-primary inline-flex items-center gap-1.5"
         >
           Open the Save step
+        </Link>
+        <Link
+          href={`/personas/${personaId}/import-suno`}
+          className="btn-ghost inline-flex items-center gap-1.5"
+        >
+          Bulk import from Suno
         </Link>
         <Link
           href={`/personas/${personaId}/tracks`}

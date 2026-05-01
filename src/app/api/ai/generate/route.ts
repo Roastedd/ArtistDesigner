@@ -10,6 +10,7 @@ import {
   lyricsPromptTemplate,
   buildCorePromptTemplate,
 } from "@/lib/persona-prompt";
+import { loadPersonaExemplars } from "@/lib/persona-exemplars";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { aiGenerateSchema } from "@/lib/validation";
 
@@ -78,12 +79,16 @@ export async function POST(req: Request) {
   }
 
   const core = buildPersonaCore(p);
+  const exemplars =
+    mode === "core"
+      ? null
+      : await loadPersonaExemplars(personaId, mode === "suno" ? "suno" : "lyrics");
   const userPrompt =
     mode === "core"
       ? buildCorePromptTemplate(p)
       : mode === "suno"
-        ? promptTemplateFor(promptTarget, core, brief!)
-        : lyricsPromptTemplate(core, brief!, controls ?? {});
+        ? promptTemplateFor(promptTarget, core, brief!, exemplars ?? undefined)
+        : lyricsPromptTemplate(core, brief!, controls ?? {}, exemplars ?? undefined);
 
   let text: string;
   try {
