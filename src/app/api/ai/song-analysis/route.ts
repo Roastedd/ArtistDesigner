@@ -4,11 +4,16 @@ import { db } from "@/db";
 import { songAnalyses } from "@/db/schema";
 import { generateWithFallback, MODEL_PRESETS, type ChatMessage } from "@/lib/openrouter";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { compressWavForAnalysis } from "@/lib/wav-compress";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MAX_BYTES = 12 * 1024 * 1024; // 12 MB cap on the URL we'll fetch and base64
+// Hard ceiling on what we'll pull down from R2. WAVs get downsampled
+// in-process (see wav-compress.ts) so we can accept large ones; everything
+// else has to fit in the model's inline-audio budget on its own.
+const MAX_FETCH_BYTES = 60 * 1024 * 1024; // 60 MB
+const MAX_NON_WAV_BYTES = 12 * 1024 * 1024; // 12 MB cap for already-compressed formats
 const ALLOWED_FORMATS = ["mp3", "wav", "ogg", "flac", "m4a", "aac"] as const;
 type AudioFormat = (typeof ALLOWED_FORMATS)[number];
 
@@ -102,31 +107,56 @@ export async function POST(req: NextRequest) {
     );
   }
   const lenHeader = audioRes.headers.get("content-length");
-  if (lenHeader && Number(lenHeader) > MAX_BYTES) {
+  if (lenHeader && Number(lenHeader) > MAX_FETCH_BYTES) {
     return NextResponse.json(
       {
-        error: `Audio too large for analysis. Max ${MAX_BYTES / 1024 / 1024} MB. Try MP3 instead of WAV.`,
+        error: `Audio too large. Max ${MAX_FETCH_BYTES / 1024 / 1024} MB.`,
       },
       { status: 413 },
     );
   }
-  const buf = Buffer.from(await audioRes.arrayBuffer());
-  if (buf.byteLength > MAX_BYTES) {
+  let buf: Buffer = Buffer.from(await audioRes.arrayBuffer());
+  if (buf.byteLength > MAX_FETCH_BYTES) {
     return NextResponse.json(
       {
-        error: `Audio too large for analysis. Max ${MAX_BYTES / 1024 / 1024} MB.`,
+        error: `Audio too large. Max ${MAX_FETCH_BYTES / 1024 / 1024} MB.`,
       },
       { status: 413 },
     );
   }
 
-  const format = inferFormat(audioUrl, audioRes.headers.get("content-type"));
+  let format = inferFormat(audioUrl, audioRes.headers.get("content-type"));
   if (!format) {
     return NextResponse.json(
       { error: `Unsupported audio format. Use one of: ${ALLOWED_FORMATS.join(", ")}` },
       { status: 400 },
     );
   }
+
+  // Big WAVs: downmix to mono 22.05 kHz, take a 90-second window. Brings a
+  // 50 MB stereo 44.1 kHz file down to ~3-4 MB so the audio model can ingest it.
+  if (format === "wav" && buf.byteLength > 4 * 1024 * 1024) {
+    try {
+      const compressed = compressWavForAnalysis(buf);
+      buf = compressed.wav;
+    } catch (e) {
+      return NextResponse.json(
+        {
+          error: `Could not preprocess WAV: ${e instanceof Error ? e.message : String(e)}. Try exporting to MP3.`,
+        },
+        { status: 400 },
+      );
+    }
+  } else if (format !== "wav" && buf.byteLength > MAX_NON_WAV_BYTES) {
+    return NextResponse.json(
+      {
+        error: `${format.toUpperCase()} too large for analysis. Max ${MAX_NON_WAV_BYTES / 1024 / 1024} MB — re-export at lower bitrate or upload as WAV (we'll compress it for you).`,
+      },
+      { status: 413 },
+    );
+  }
+  // Suppress unused-var noise: format may be reassigned in future formats.
+  void format;
 
   const userText = [
     "Analyze this track and return JSON only.",

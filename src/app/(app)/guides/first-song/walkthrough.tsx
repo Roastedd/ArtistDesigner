@@ -1664,9 +1664,9 @@ function AnalyzeStep() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-[color:var(--color-muted)]">
-        Upload your finished MP3 and our audio model will give you a detailed
-        mix &amp; mastering review with concrete next steps. Max 12 MB
-        (use MP3, not WAV).
+        Upload your finished mix (MP3 or WAV, up to 50 MB) and our audio model
+        will give you a detailed mix &amp; mastering review with concrete next
+        steps. Big WAVs get auto-downsampled before analysis.
       </p>
 
       <div className="space-y-3">
