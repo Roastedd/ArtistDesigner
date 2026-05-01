@@ -24,7 +24,7 @@ export default async function BulkImportPage({
     <div className="space-y-6">
       <Breadcrumbs
         items={[
-          { label: "Personas", href: "/personas" },
+          { label: "Dashboard", href: "/dashboard" },
           { label: p.name, href: `/personas/${p.id}` },
           { label: "Import from Suno" },
         ]}
