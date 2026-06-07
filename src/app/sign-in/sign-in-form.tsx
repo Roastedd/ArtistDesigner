@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useEffect, useRef } from "react";
+import { useActionState, useState, useRef } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { signInAction, signUpAction, gitHubSignInAction } from "./actions";
 import type { AuthState } from "./actions";
@@ -238,9 +238,7 @@ export function SignInCard({
   hasGitHub: boolean;
 }) {
   const [tab, setTab] = useState<"signin" | "signup">(initialTab);
-  // Track whether the card has mounted so the entry animation only runs once
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = true;
 
   // Used to determine cross-fade direction
   const prevTab = useRef(tab);

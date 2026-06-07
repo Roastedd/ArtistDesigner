@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let format = inferFormat(audioUrl, audioRes.headers.get("content-type"));
+  const format = inferFormat(audioUrl, audioRes.headers.get("content-type"));
   if (!format) {
     return NextResponse.json(
       { error: `Unsupported audio format. Use one of: ${ALLOWED_FORMATS.join(", ")}` },

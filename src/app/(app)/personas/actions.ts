@@ -15,7 +15,7 @@ import {
   releases,
 } from "@/db/schema";
 import { buildSlug } from "@/lib/utils";
-import { generate } from "@/lib/openrouter";
+import { DEFAULT_FALLBACK_CHAIN, generate, generateWithFallback } from "@/lib/openrouter";
 import { buildCorePromptTemplate } from "@/lib/persona-prompt";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -25,6 +25,24 @@ function csv(value: FormDataEntryValue | null): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function safeReturnTo(value: FormDataEntryValue | null): string | null {
+  const raw = String(value ?? "").trim();
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  try {
+    const url = new URL(raw, "https://artistdesigner.local");
+    if (url.origin !== "https://artistdesigner.local") return null;
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
+function withCreatedPersona(path: string, personaId: string): string {
+  const url = new URL(path, "https://artistdesigner.local");
+  url.searchParams.set("createdPersonaId", personaId);
+  return `${url.pathname}${url.search}`;
 }
 
 export async function createPersona(formData: FormData) {
@@ -63,6 +81,8 @@ export async function createPersona(formData: FormData) {
     })
     .returning({ id: personas.id });
 
+  const returnTo = safeReturnTo(formData.get("returnTo"));
+  if (returnTo) redirect(withCreatedPersona(returnTo, p.id));
   redirect(`/personas/${p.id}`);
 }
 
@@ -298,6 +318,180 @@ export interface LyricDnaSuggestions {
   influences?: string[];
   tagline?: string;
   bio?: string;
+}
+
+export interface PersonaDetailDraft {
+  name?: string;
+  tagline?: string;
+  bio?: string;
+  genres?: string;
+  bpmMin?: number | string;
+  bpmMax?: number | string;
+  vocalStyle?: string;
+  instrumentation?: string;
+  mixAesthetic?: string;
+  colorPalette?: string;
+  visualRefs?: string;
+  imagePromptTemplate?: string;
+  slang?: string;
+  motifs?: string;
+  forbiddenWords?: string;
+  influences?: string;
+  personality?: string;
+  keyTendencies?: string;
+  lyricalTone?: string;
+  visualAesthetic?: string;
+  themes?: string;
+  targetAudience?: string;
+  personaCore?: string;
+}
+
+export type PersonaDetailSuggestions = Required<
+  Pick<
+    PersonaDetailDraft,
+    | "tagline"
+    | "bio"
+    | "genres"
+    | "bpmMin"
+    | "bpmMax"
+    | "vocalStyle"
+    | "instrumentation"
+    | "mixAesthetic"
+    | "colorPalette"
+    | "visualRefs"
+    | "imagePromptTemplate"
+    | "slang"
+    | "motifs"
+    | "forbiddenWords"
+    | "influences"
+    | "personality"
+    | "keyTendencies"
+    | "lyricalTone"
+    | "visualAesthetic"
+    | "themes"
+    | "targetAudience"
+  >
+>;
+
+function extractJsonObject(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenced) return fenced[1].trim();
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end > start) return text.slice(start, end + 1);
+  return text;
+}
+
+function cleanSuggestion(value: unknown): string {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return value.trim();
+  return "";
+}
+
+export type PersonaDetailAssistantState =
+  | { ok: true; suggestions: PersonaDetailSuggestions; model?: string }
+  | { ok: false; error: string };
+
+export async function suggestPersonaDetails(
+  personaId: string,
+  current: PersonaDetailDraft,
+  direction: string,
+): Promise<PersonaDetailAssistantState> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
+
+  const rl = checkRateLimit(`ai:${session.user.id}`, 20, 60_000);
+  if (!rl.ok) return { ok: false, error: "Rate limit reached. Try again in a minute." };
+
+  const [p] = await db
+    .select({ id: personas.id, name: personas.name })
+    .from(personas)
+    .where(and(eq(personas.id, personaId), eq(personas.userId, session.user.id)));
+  if (!p) return { ok: false, error: "Persona not found" };
+
+  const systemPrompt = `You are an expert A&R director, music producer, lyric coach, and visual identity designer.
+Your job is to help a creator fill out a fictional AI music artist profile so future Suno/Udio prompts stay consistent.
+Return ONLY valid JSON. No markdown, no prose.
+Every string should be concrete, specific, and immediately usable in a form.
+Do not use real living artists as a direct clone target; references may be broad influence comparisons only.
+Avoid generic filler like "unique sound", "authentic voice", "genre-bending", "emotional journey".
+
+JSON shape:
+{
+  "tagline": "max 12 words",
+  "bio": "2-3 sentences, third-person, evocative and specific",
+  "genres": "3-5 comma-separated genre/style tags",
+  "bpmMin": 80,
+  "bpmMax": 130,
+  "vocalStyle": "gender/texture/range/delivery phrase",
+  "instrumentation": "5-8 comma-separated instruments/sounds",
+  "mixAesthetic": "specific production/mix description",
+  "colorPalette": "3-5 comma-separated hex colors",
+  "visualRefs": "3-5 comma-separated visual references, not URLs",
+  "imagePromptTemplate": "one reusable image-generation prompt for covers/profile art",
+  "slang": "5-8 comma-separated lexicon words/phrases the artist would use",
+  "motifs": "6-10 comma-separated recurring lyric images/themes",
+  "forbiddenWords": "5-8 comma-separated words/cliches to avoid",
+  "influences": "3-5 comma-separated broad musical/visual influence references",
+  "personality": "3-5 comma-separated personality traits",
+  "keyTendencies": "keys/modes that fit the artist",
+  "lyricalTone": "one precise phrase",
+  "visualAesthetic": "1-2 sentences describing the visual world",
+  "themes": "one sentence naming recurring narrative themes",
+  "targetAudience": "specific listener/community segment"
+}`;
+
+  const userPrompt = `Artist ID: ${p.id}
+Stored artist name: ${p.name}
+
+Current unsaved form values:
+${JSON.stringify(current, null, 2).slice(0, 6000)}
+
+Creator direction:
+${direction.trim() || "Fill gaps and make the artist more coherent, distinctive, and useful for AI music generation."}
+
+Generate a complete improved profile. Preserve strong existing choices, fill missing fields, and make all fields agree with each other.`;
+
+  try {
+    const result = await generateWithFallback({
+      models: DEFAULT_FALLBACK_CHAIN,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.75,
+      max_tokens: 1200,
+      response_format: { type: "json_object" },
+    });
+    const parsed = JSON.parse(extractJsonObject(result.content)) as Record<string, unknown>;
+    const suggestions: PersonaDetailSuggestions = {
+      tagline: cleanSuggestion(parsed.tagline),
+      bio: cleanSuggestion(parsed.bio),
+      genres: cleanSuggestion(parsed.genres),
+      bpmMin: cleanSuggestion(parsed.bpmMin),
+      bpmMax: cleanSuggestion(parsed.bpmMax),
+      vocalStyle: cleanSuggestion(parsed.vocalStyle),
+      instrumentation: cleanSuggestion(parsed.instrumentation),
+      mixAesthetic: cleanSuggestion(parsed.mixAesthetic),
+      colorPalette: cleanSuggestion(parsed.colorPalette),
+      visualRefs: cleanSuggestion(parsed.visualRefs),
+      imagePromptTemplate: cleanSuggestion(parsed.imagePromptTemplate),
+      slang: cleanSuggestion(parsed.slang),
+      motifs: cleanSuggestion(parsed.motifs),
+      forbiddenWords: cleanSuggestion(parsed.forbiddenWords),
+      influences: cleanSuggestion(parsed.influences),
+      personality: cleanSuggestion(parsed.personality),
+      keyTendencies: cleanSuggestion(parsed.keyTendencies),
+      lyricalTone: cleanSuggestion(parsed.lyricalTone),
+      visualAesthetic: cleanSuggestion(parsed.visualAesthetic),
+      themes: cleanSuggestion(parsed.themes),
+      targetAudience: cleanSuggestion(parsed.targetAudience),
+    };
+    return { ok: true, suggestions, model: result.model };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "AI detail suggestions failed" };
+  }
 }
 
 /**

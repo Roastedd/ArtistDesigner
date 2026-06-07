@@ -1,7 +1,9 @@
 "use client";
 
+/* eslint-disable react/no-unescaped-entities */
+
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -54,28 +56,26 @@ const STEP_TITLES = [
 export function Walkthrough({
   initialStep,
   initialPlatform,
+  initialSelectedPersonaId,
   personas,
 }: {
   initialStep: number;
   initialPlatform: Platform | null;
+  initialSelectedPersonaId: string | null;
   personas: Persona[];
 }) {
   const [step, setStep] = useState(Math.min(initialStep, TOTAL_STEPS - 1));
   const [platform, setPlatform] = useState<Platform | null>(initialPlatform);
-  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(() => {
+    if (initialSelectedPersonaId) return initialSelectedPersonaId;
+    if (typeof window === "undefined") return null;
+    const saved = window.localStorage.getItem("firstSong:personaId");
+    if (saved && personas.some((p) => p.id === saved)) return saved;
+    if (personas.length === 1) return personas[0].id;
+    return null;
+  });
   const [pending, start] = useTransition();
   const completed = initialStep >= TOTAL_STEPS;
-
-  // Restore selected artist from localStorage; clear if it no longer exists.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem("firstSong:personaId");
-    if (saved && personas.some((p) => p.id === saved)) {
-      setSelectedPersonaId(saved);
-    } else if (personas.length === 1) {
-      setSelectedPersonaId(personas[0].id);
-    }
-  }, [personas]);
 
   function pickPersona(id: string) {
     setSelectedPersonaId(id);
@@ -703,17 +703,15 @@ function ArtistStep({
         </p>
         <div className="card border-dashed">
           <div className="text-sm mb-3">You don't have an artist yet.</div>
-          <a
-            href="/personas/new"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/personas/new?returnTo=%2Fguides%2Ffirst-song"
             className="btn-primary inline-flex items-center gap-1.5"
           >
-            <Sparkles className="h-4 w-4" /> Generate one in a new tab
-          </a>
+            <Sparkles className="h-4 w-4" /> Generate one with AI
+          </Link>
         </div>
         <p className="text-xs text-[color:var(--color-muted)]">
-          Come back to this tab when you're done — your progress is saved.
+          After saving, you’ll come right back here with the new artist selected.
         </p>
       </div>
     );
@@ -766,14 +764,12 @@ function ArtistStep({
           </a>
         </div>
       )}
-      <a
-        href="/personas/new"
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        href="/personas/new?returnTo=%2Fguides%2Ffirst-song"
         className="text-xs text-[color:var(--color-accent)] hover:opacity-80 inline-flex items-center gap-1"
       >
-        <Sparkles className="h-3.5 w-3.5" /> or generate a new one (new tab)
-      </a>
+        <Sparkles className="h-3.5 w-3.5" /> or generate a new one for this walkthrough
+      </Link>
     </div>
   );
 }
@@ -1460,10 +1456,13 @@ function MasterStep() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-[color:var(--color-muted)]">
-        Suno/Udio mixes are usable but not radio-loud. A short mastering chain
-        in your DAW gets you to streaming-ready loudness without crushing the
-        mix. Pick your DAW:
+        Mastering is the final polish pass: make the song translate on phones,
+        earbuds, cars, and playlists without changing its personality. Start
+        with the checks below, then pick your DAW.
       </p>
+
+      <BeginnerMasteringPrimer />
+
       <div className="flex gap-2">
         <DawTab active={daw === "fl"} onClick={() => setDaw("fl")} label="FL Studio" />
         <DawTab
@@ -1475,38 +1474,107 @@ function MasterStep() {
 
       {daw === "fl" ? <FLSteps /> : <AbletonSteps />}
 
+      <MasteringTroubleshooting />
+
       <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-xs space-y-1.5">
         <div className="font-semibold">Streaming loudness targets</div>
         <ul className="space-y-1 text-[color:var(--color-muted)]">
           <li>
-            <strong>Spotify / YouTube Music:</strong> -14 LUFS integrated
+            <strong>Beginner-safe target:</strong> around -14 LUFS integrated
           </li>
           <li>
-            <strong>Apple Music / Tidal:</strong> -16 LUFS integrated
+            <strong>Apple Music reference:</strong> around -16 LUFS integrated
           </li>
           <li>
-            <strong>True peak:</strong> -1.0 dBTP (never higher)
+            <strong>True peak ceiling:</strong> -1.0 dBTP, or -1.5 dBTP if the master is loud
           </li>
         </ul>
         <div className="text-[color:var(--color-muted)] pt-1">
-          Hot tip: don't over-master. -14 LUFS with -1 dBTP is the sweet spot.
-          Streaming services <em>turn down</em> louder masters and you lose
-          dynamics for nothing.
+          Don't chase a number if the track gets smaller, harsher, or flatter.
+          Streaming services normalize playback, so a cleaner -14 LUFS master
+          usually beats a crushed -9 LUFS master for beginners.
         </div>
       </div>
 
       <CopyBlock
-        label="Universal mastering chain (any DAW)"
-        text={`1. High-pass filter @ 25-30 Hz (12 dB/oct) — kills sub rumble
-2. Subtractive EQ — cut 200-400 Hz mud (1-3 dB if needed)
-3. Gentle bus compression — 2:1 ratio, slow attack (~30ms),
-   auto release, 1-2 dB gain reduction max
-4. Tone shaping EQ — small +1-2 dB shelf @ 10-12 kHz for "air"
-5. Stereo imager — slight widening on highs only
-6. Limiter — ceiling -1.0 dBTP, output gain to taste,
-   target -14 LUFS integrated (use a meter)
-7. Reference against a commercial track in your genre`}
+        label="Beginner mastering recipe (any DAW)"
+        text={`0. Export the AI/platform mix as WAV if available. Avoid normalize.
+1. New DAW project. One stereo audio track, one reference track.
+2. Lower the reference until it feels as loud as your song.
+3. Corrective EQ only if needed: tiny 0.5-1.5 dB moves.
+4. Optional glue compression: 1.5:1 or 2:1, slow attack,
+   1-2 dB gain reduction on the loudest section.
+5. Optional tone EQ: tiny air shelf or low-mid cleanup.
+6. Optional stereo: keep bass mono below 120-150 Hz; widen highs only.
+7. Limiter last: true-peak ceiling -1.0 dBTP, raise gain until
+   the loudest chorus lands near -14 LUFS integrated.
+8. Play the full song through the meter. Export 24-bit WAV archive
+   and 16-bit/44.1 kHz WAV for distribution if required.`}
       />
+    </div>
+  );
+}
+
+function BeginnerMasteringPrimer() {
+  const checks = [
+    {
+      title: "Fix mix problems first",
+      body: "If the vocal is buried, bass is muddy, or drums are weak, go back a step. Mastering should polish, not rescue.",
+    },
+    {
+      title: "Use a fresh project",
+      body: "Export the best stereo mix, then master in a new DAW session so you stop tweaking the song while judging the final file.",
+    },
+    {
+      title: "Pick one reference",
+      body: "Use a released track in the same genre. Turn it down to match your song before comparing tone, width, and punch.",
+    },
+    {
+      title: "Tiny moves win",
+      body: "Most mastering EQ changes are 0.5-1.5 dB. If you need huge moves, the mix needs revision.",
+    },
+    {
+      title: "Meter after the limiter",
+      body: "Put your loudness meter last or post-limiter. Check integrated LUFS and true peak after playing the whole song.",
+    },
+  ];
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {checks.map((check) => (
+        <div
+          key={check.title}
+          className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3"
+        >
+          <div className="mb-1 text-sm font-medium">{check.title}</div>
+          <p className="text-xs leading-relaxed text-[color:var(--color-muted)]">
+            {check.body}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MasteringTroubleshooting() {
+  const fixes = [
+    ["It sounds harsh", "Bypass the air EQ first. If harshness remains, try a tiny 2-4 kHz cut before touching the limiter."],
+    ["Kick lost punch", "Back off limiter gain or slow the compressor release. Loudness is not worth losing the transient."],
+    ["Bass disappears on phones", "Check mono. Keep sub/bass centered and avoid widening low frequencies below 120-150 Hz."],
+    ["Master is quieter than references", "Level-match references before judging. If it is still weak, improve midrange clarity before pushing limiter gain."],
+  ] as const;
+
+  return (
+    <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+      <div className="mb-2 text-sm font-semibold">When it sounds worse, do this</div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {fixes.map(([problem, fix]) => (
+          <div key={problem} className="text-xs">
+            <div className="font-medium text-[color:var(--color-fg)]">{problem}</div>
+            <div className="text-[color:var(--color-muted)]">{fix}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1535,45 +1603,259 @@ function DawTab({
 }
 
 function FLSteps() {
+  const [routeMethod, setRouteMethod] = useState<"fast" | "manual" | "audio-track">("fast");
+
   return (
-    <div className="space-y-3">
-      <ol className="text-sm space-y-2 list-decimal pl-5">
-        <li>
-          <strong>Import:</strong> File → Import → Audio file. Drop the MP3 onto
-          the Playlist. Right-click the track → <em>Detect tempo</em> if you
-          don't know the BPM.
+    <div className="space-y-4">
+      <div className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+        <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+          <Sliders className="h-4 w-4 text-[color:var(--color-accent)]" />
+          What you are building in FL Studio
+        </div>
+        <div className="grid gap-2 text-xs text-[color:var(--color-muted)] sm:grid-cols-3">
+          <FlowPill label="Audio clip" detail="The WAV/MP3 from Suno or Udio" />
+          <FlowPill label="Insert 1" detail="Your song bus with the mastering chain" />
+          <FlowPill label="Master" detail="Final output, no extra surprise plugins" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-semibold">1. Import the song</div>
+        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-sm text-[color:var(--color-muted)]">
+          Drag your exported WAV onto the Playlist. If the platform only gave
+          you MP3, use it for the walkthrough, but export your finished master
+          from FL Studio as WAV. You should see the audio clip in the Playlist
+          and also as an Audio Clip channel in the Channel Rack.
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-semibold">2. Route the audio clip to Insert 1</div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <RouteMethodButton
+            active={routeMethod === "fast"}
+            onClick={() => setRouteMethod("fast")}
+            title="Fastest"
+            body="Select the audio channel, select Insert 1, press Ctrl+L."
+          />
+          <RouteMethodButton
+            active={routeMethod === "manual"}
+            onClick={() => setRouteMethod("manual")}
+            title="Manual"
+            body="Open channel settings and set the mixer track number."
+          />
+          <RouteMethodButton
+            active={routeMethod === "audio-track"}
+            onClick={() => setRouteMethod("audio-track")}
+            title="Audio Track mode"
+            body="Use Playlist track mode if your FL version shows it."
+          />
+        </div>
+        <FLRoutingMethod method={routeMethod} />
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-semibold">3. Add plugins to Insert 1</div>
+        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-sm text-[color:var(--color-muted)]">
+          First click <strong className="text-[color:var(--color-fg)]">Insert 1</strong> in the Mixer so it is selected. On the right side of the Mixer you will see effect slots named Slot 1, Slot 2, Slot 3, and so on. Audio runs from Slot 1 down to Slot 10, so add the plugins in this order.
+        </div>
+        <div className="grid gap-3">
+          {FL_CHAIN.map((slot) => (
+            <FLPluginStep key={slot.slot} slot={slot} />
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-sm">
+          <div className="mb-1 font-semibold">4. Tune the limiter</div>
+          <p className="text-xs leading-relaxed text-[color:var(--color-muted)]">
+            In Fruity Limiter, use the LIMIT tab, set CEIL around -1.0 dB,
+            then raise GAIN slowly. Stop when the loudest chorus is near -14
+            LUFS integrated, or earlier if the kick, snare, or vocal starts
+            sounding smaller.
+          </p>
+        </div>
+        <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3 text-sm">
+          <div className="mb-1 font-semibold">5. Export safely</div>
+          <p className="text-xs leading-relaxed text-[color:var(--color-muted)]">
+            File → Export → WAV. Use Song mode, Leave remainder for tails, keep
+            Master effects enabled, and export a 24-bit WAV archive. Only add
+            dither once when exporting a final 16-bit / 44.1 kHz file.
+          </p>
+        </div>
+      </div>
+
+      <FLMasteringChecklist />
+    </div>
+  );
+}
+
+const FL_CHAIN = [
+  {
+    slot: 1,
+    name: "Fruity Parametric EQ 2",
+    picker: "Click Slot 1 → type or choose Fruity Parametric EQ 2 → click it. If you see More plugins..., click it, search Fruity Parametric EQ 2, then double-click it.",
+    setup: "When it opens, leave it mostly flat. For a beginner high-pass, use band 1 on the far left and gently roll off only the deepest rumble around 25-30 Hz.",
+    detail: "High-pass around 25-30 Hz to remove sub-rumble. Leave it flat if the low end already feels clean.",
+  },
+  {
+    slot: 2,
+    name: "Fruity Limiter COMP or Maximus lightly",
+    picker: "Click Slot 2 → choose Fruity Limiter. To use Maximus instead, choose Maximus from the same plugin list.",
+    setup: "For Fruity Limiter, click the COMP tab. Lower THRESH only until the loudest part shows 1-2 dB of gain reduction. If it is confusing, skip this slot for your first master.",
+    detail: "Optional glue only. Aim for 1-2 dB gain reduction on the loudest section, not constant squeezing.",
+  },
+  {
+    slot: 3,
+    name: "Fruity Parametric EQ 2",
+    picker: "Click Slot 3 → choose Fruity Parametric EQ 2 again.",
+    setup: "Use this only for tiny tone changes. Try a small high shelf for air or a tiny low-mid cut if it sounds muddy, then bypass the plugin to compare.",
+    detail: "Tiny tone moves. Try 0.5-1.5 dB, then bypass it to make sure it actually helped.",
+  },
+  {
+    slot: 4,
+    name: "Maximus or Fruity Limiter LIMIT",
+    picker: "Click Slot 4 → choose Fruity Limiter for the simpler path, or Maximus if you already feel comfortable with it.",
+    setup: "For Fruity Limiter, click LIMIT, set CEIL around -1.0 dB, then raise GAIN slowly while the loudest chorus plays.",
+    detail: "Final loudness stage. Maximus is powerful but easier to overdo; Fruity Limiter is simpler for first masters.",
+  },
+  {
+    slot: 5,
+    name: "Youlean Loudness Meter or similar",
+    picker: "Click Slot 5 → choose your loudness meter. If Youlean is not listed, install it first or use More plugins... after scanning plugins.",
+    setup: "Play the whole song or at least the loudest full section. Watch Integrated LUFS and True Peak after the limiter, not before it.",
+    detail: "Put a real LUFS/true-peak meter after the limiter. Wave Candy is okay for stock visual checks, not final true-peak confidence.",
+  },
+] as const;
+
+function FLPluginStep({ slot }: { slot: (typeof FL_CHAIN)[number] }) {
+  return (
+    <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+      <div className="mb-3 flex items-start gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[color:var(--color-accent)]/10 text-xs font-semibold text-[color:var(--color-accent)]">
+          {slot.slot}
+        </div>
+        <div>
+          <div className="text-sm font-semibold">Slot {slot.slot}: {slot.name}</div>
+          <div className="text-xs text-[color:var(--color-muted)]">{slot.detail}</div>
+        </div>
+      </div>
+      <ol className="space-y-2 text-sm">
+        <li className="flex gap-2">
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-bg-elev)] text-[11px] font-semibold text-[color:var(--color-muted)]">A</span>
+          <span className="text-[color:var(--color-muted)]">{slot.picker}</span>
         </li>
-        <li>
-          <strong>Route to Master:</strong> Right-click the audio clip → Track
-          properties → set Output to Insert 1, then route Insert 1 → Master.
-        </li>
-        <li>
-          <strong>Open the Master mixer channel.</strong> Add these plugins in
-          order (top to bottom):
-          <ul className="list-disc pl-5 mt-1 text-[color:var(--color-muted)] text-xs space-y-0.5">
-            <li>Slot 1: <strong>Fruity Parametric EQ 2</strong> — high-pass at 28 Hz</li>
-            <li>Slot 2: <strong>Fruity Multiband Compressor</strong> — preset "Mastering", 1-2 dB GR</li>
-            <li>Slot 3: <strong>Fruity Parametric EQ 2</strong> — +1.5 dB shelf @ 10 kHz</li>
-            <li>Slot 4: <strong>Fruity Stereo Shaper</strong> (optional widening on highs)</li>
-            <li>Slot 5: <strong>Fruity Limiter</strong> — Ceiling -1.0 dB, Gain +3-5 dB to taste</li>
-            <li>Slot 6: <strong>Fruity Loudness Meter</strong> (free) — watch LUFS</li>
-          </ul>
-        </li>
-        <li>
-          <strong>Tune the limiter</strong> by ear: push Gain on Fruity Limiter
-          until the loudest section reads <strong>-14 LUFS integrated</strong>{" "}
-          on the meter. Back off if it sounds squashed.
-        </li>
-        <li>
-          <strong>Export:</strong> File → Export → WAV. Settings: 44.1 kHz,
-          24-bit, "Save acid info" off. Choose <em>"Render"</em> mode.
-        </li>
-        <li>
-          <strong>A/B test:</strong> drag a Spotify reference track onto a
-          second Playlist track and toggle mute. Match perceived loudness
-          before judging tone.
+        <li className="flex gap-2">
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-bg-elev)] text-[11px] font-semibold text-[color:var(--color-muted)]">B</span>
+          <span className="text-[color:var(--color-muted)]">{slot.setup}</span>
         </li>
       </ol>
+    </div>
+  );
+}
+
+function FlowPill({ label, detail }: { label: string; detail: string }) {
+  return (
+    <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] px-3 py-2">
+      <div className="font-medium text-[color:var(--color-fg)]">{label}</div>
+      <div>{detail}</div>
+    </div>
+  );
+}
+
+function RouteMethodButton({
+  active,
+  onClick,
+  title,
+  body,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  body: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md border p-3 text-left transition-colors ${
+        active
+          ? "border-[color:var(--color-accent)] bg-[color:var(--color-accent)]/10"
+          : "border-[color:var(--color-border)] bg-[color:var(--color-bg)] hover:border-[color:var(--color-accent)]/50"
+      }`}
+    >
+      <div className="mb-1 flex items-center gap-1.5 text-sm font-medium">
+        {active && <Check className="h-3.5 w-3.5 text-[color:var(--color-accent)]" />}
+        {title}
+      </div>
+      <div className="text-xs leading-relaxed text-[color:var(--color-muted)]">{body}</div>
+    </button>
+  );
+}
+
+function FLRoutingMethod({ method }: { method: "fast" | "manual" | "audio-track" }) {
+  const steps = {
+    fast: [
+      "Press F9 to open the Mixer.",
+      "Click Insert 1 in the Mixer so it is highlighted.",
+      "In the Channel Rack, click the small button/light beside your audio clip channel so that channel is selected.",
+      "Press Ctrl+L. FL should link the selected channel to Insert 1 and usually rename the insert after the clip.",
+      "Press play. Insert 1 should move when the song plays, then the Master should move too.",
+    ],
+    manual: [
+      "Open the Channel Rack and find the audio clip channel for your song.",
+      "Click the audio clip channel to open Channel Settings.",
+      "Find the mixer track/FX target number in the upper-right area of Channel Settings.",
+      "Set that number to 1. This sends the audio clip channel to Insert 1.",
+      "Press play and confirm Insert 1 receives the audio before adding plugins.",
+    ],
+    "audio-track": [
+      "If your Playlist track header supports Track mode, right-click the track header that holds the audio.",
+      "Choose Track mode / Audio track, then assign it to Insert 1 or a new audio insert.",
+      "Rename that mixer insert to your song title or Master Bus.",
+      "Keep your reference track on a different Playlist track and mixer insert so it bypasses the mastering chain.",
+      "If this option is not visible in your FL version, use the Ctrl+L method instead.",
+    ],
+  }[method];
+
+  return (
+    <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+      <ol className="space-y-2 text-sm">
+        {steps.map((step, index) => (
+          <li key={step} className="flex gap-2">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-bg-elev)] text-[11px] font-semibold text-[color:var(--color-muted)]">
+              {index + 1}
+            </span>
+            <span className="text-[color:var(--color-muted)]">{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function FLMasteringChecklist() {
+  const items = [
+    "Insert 1 moves when the song plays",
+    "Reference track is on a different insert",
+    "Limiter or Maximus is before the loudness meter",
+    "Meter is after the limiter",
+    "True peak stays at or below -1.0 dBTP",
+    "You listened once with every mastering plugin bypassed",
+  ];
+
+  return (
+    <div className="rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3">
+      <div className="mb-2 text-sm font-semibold">Before you export</div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {items.map((item) => (
+          <label key={item} className="flex items-start gap-2 text-xs text-[color:var(--color-muted)]">
+            <input type="checkbox" className="mt-0.5 accent-[color:var(--color-accent)]" />
+            <span>{item}</span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

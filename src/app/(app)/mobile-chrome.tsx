@@ -45,12 +45,8 @@ export default function MobileChrome({
   theme: string;
 }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-
-  // Close drawer on route change
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  const [openPathname, setOpenPathname] = useState<string | null>(null);
+  const open = openPathname === pathname;
 
   // Lock body scroll while drawer open
   useEffect(() => {
@@ -70,7 +66,7 @@ export default function MobileChrome({
         <div className="flex items-center justify-between h-14 px-3 safe-x">
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => setOpenPathname(pathname)}
             aria-label="Open menu"
             className="p-2 -ml-2 rounded-md text-[color:var(--color-fg)] hover:bg-[color:var(--color-bg-elev)] active:scale-95 transition"
           >
@@ -104,7 +100,7 @@ export default function MobileChrome({
           <button
             type="button"
             aria-label="Close menu"
-            onClick={() => setOpen(false)}
+            onClick={() => setOpenPathname(null)}
             className="absolute inset-0 bg-black/60 animate-overlay-in"
           />
           <aside className="relative w-[82vw] max-w-[320px] h-full bg-[color:var(--color-bg)] border-r border-[color:var(--color-border)] flex flex-col safe-top safe-bottom animate-drawer-in">
@@ -117,7 +113,7 @@ export default function MobileChrome({
               </Link>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => setOpenPathname(null)}
                 aria-label="Close"
                 className="p-2 -mr-2 rounded-md hover:bg-[color:var(--color-bg-elev)]"
               >

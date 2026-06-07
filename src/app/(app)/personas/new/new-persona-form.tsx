@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState, useTransition, useRef } from "react";
+import { useEffect, useState, useActionState, useTransition } from "react";
 import { Loader2, Sparkles, PenLine, RefreshCw, ChevronRight } from "lucide-react";
 import { brainstormPersona } from "./brainstorm-action";
 import { createPersona } from "../actions";
@@ -57,13 +57,9 @@ function BrainstormPanel({
 }) {
   const [state, action, pending] = useActionState(brainstormPersona, null);
 
-  // When we get a successful result, bubble it up
-  const prevOk = useRef(false);
-  if (state?.ok && !prevOk.current) {
-    prevOk.current = true;
-    onFill(state.result);
-  }
-  if (!state?.ok) prevOk.current = false;
+  useEffect(() => {
+    if (state?.ok) onFill(state.result);
+  }, [state, onFill]);
 
   return (
     <form action={action} className="space-y-4">
@@ -181,9 +177,11 @@ function NamePicker({
 function ReviewPanel({
   result,
   onReset,
+  returnTo,
 }: {
   result: BrainstormResult;
   onReset: () => void;
+  returnTo: string | null;
 }) {
   const [name, setName] = useState(result.names[0]);
   const [submitting, startSubmit] = useTransition();
@@ -196,6 +194,7 @@ function ReviewPanel({
 
   return (
     <form action={handleSubmit} className="space-y-5">
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       {/* Name picker */}
       <NamePicker names={result.names} chosen={name} onChange={setName} />
 
@@ -343,7 +342,7 @@ function ReviewPanel({
 
 /* ─── Main export ─────────────────────────────────────── */
 
-export function NewPersonaForm() {
+export function NewPersonaForm({ returnTo = null }: { returnTo?: string | null }) {
   const [mode, setMode] = useState<"manual" | "brainstorm">("brainstorm");
   const [brainstormResult, setBrainstormResult] =
     useState<BrainstormResult | null>(null);
@@ -401,6 +400,7 @@ export function NewPersonaForm() {
             <ReviewPanel
               result={brainstormResult}
               onReset={() => setBrainstormResult(null)}
+              returnTo={returnTo}
             />
           ) : (
             <BrainstormPanel onFill={setBrainstormResult} />
@@ -408,6 +408,7 @@ export function NewPersonaForm() {
         ) : (
           /* Manual form — same fields as before */
           <form action={createPersona} className="space-y-4">
+            {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
             <Field label="Name *" name="name" placeholder="e.g. NOVA-7" />
             <Field
               label="Tagline"

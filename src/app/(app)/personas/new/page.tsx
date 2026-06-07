@@ -3,7 +3,19 @@ import { Sparkles } from "lucide-react";
 
 export const maxDuration = 60;
 
-export default function NewPersonaPage() {
+function safeReturnTo(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
+export default async function NewPersonaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ returnTo?: string | string[] }>;
+}) {
+  const returnTo = safeReturnTo((await searchParams).returnTo);
+
   return (
     <div className="max-w-xl">
       <h1 className="text-3xl font-bold tracking-tight">Create an Artist</h1>
@@ -24,7 +36,12 @@ export default function NewPersonaPage() {
           and you’ll get a full artist back, ready to ship.
         </div>
       </div>
-      <NewPersonaForm />
+      {returnTo && (
+        <div className="mb-6 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-bg-elev)] px-4 py-3 text-sm text-[color:var(--color-muted)]">
+          Create the artist here. After saving, you’ll return to your first-song walkthrough automatically.
+        </div>
+      )}
+      <NewPersonaForm returnTo={returnTo} />
     </div>
   );
 }

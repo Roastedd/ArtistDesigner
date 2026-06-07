@@ -7,9 +7,17 @@ import { Walkthrough } from "./walkthrough";
 
 export const dynamic = "force-dynamic";
 
-export default async function FirstSongPage() {
+export default async function FirstSongPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ createdPersonaId?: string | string[] }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
+  const createdPersonaIdParam = (await searchParams).createdPersonaId;
+  const createdPersonaId = Array.isArray(createdPersonaIdParam)
+    ? createdPersonaIdParam[0]
+    : createdPersonaIdParam;
 
   const [user] = await db
     .select({
@@ -30,6 +38,9 @@ export default async function FirstSongPage() {
       initialStep={user?.onboardingStep ?? 0}
       initialPlatform={
         (user?.onboardingPlatform as "suno" | "udio" | null) ?? null
+      }
+      initialSelectedPersonaId={
+        list.some((p) => p.id === createdPersonaId) ? createdPersonaId ?? null : null
       }
       personas={list}
     />

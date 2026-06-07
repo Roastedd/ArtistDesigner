@@ -18,6 +18,7 @@ import { updatePersona, deletePersona, clonePersona } from "../actions";
 import { PersonaTabs } from "./persona-tabs";
 import PromptForge from "./prompt-forge";
 import LyricSeeder from "./lyric-seeder";
+import { ArtistDetailAssistant } from "./artist-detail-assistant";
 import { DeleteButton } from "@/components/delete-button";
 import { RegenerateCoreButton } from "./regenerate-core-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -400,8 +401,7 @@ function ProfileView({
         </form>
       </Section>
 
-      <div className="grid md:grid-cols-2 gap-6 mt-6">
-        <LyricSeeder personaId={p.id} />
+      <div className="grid md:grid-cols-1 gap-6 mt-6">
         <PromptForge personaId={p.id} />
       </div>
 
@@ -572,7 +572,16 @@ function EditMode({ persona: p }: { persona: typeof personas.$inferSelect }) {
         </Link>
       </div>
 
-      <form action={updatePersona.bind(null, p.id)} className="card space-y-3">
+      <div className="mb-4 grid gap-4">
+        <ArtistDetailAssistant personaId={p.id} artistName={p.name} />
+        <LyricSeeder personaId={p.id} />
+      </div>
+
+      <form
+        action={updatePersona.bind(null, p.id)}
+        className="card space-y-3"
+        data-persona-form="true"
+      >
         <h2 className="font-medium mb-2">Identity</h2>
         <Field label="Name" name="name" defaultValue={p.name} />
         <Field label="Tagline" name="tagline" defaultValue={p.tagline ?? ""} />
